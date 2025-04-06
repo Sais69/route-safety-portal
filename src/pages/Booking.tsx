@@ -13,13 +13,13 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Clock, MapPin, Plus, Minus, Edit2, Bus, Trash } from 'lucide-react';
-import { loadGoogleMapsScript, calculateCost, GOOGLE_MAPS_API_KEY } from '@/services/mapService';
+import { loadGoogleMapsScript, calculateCost, GOOGLE_MAPS_API_KEY, isGoogleMapsLoaded } from '@/services/mapService';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-// Add external dependency for drag and drop
-<lov-add-dependency>react-beautiful-dnd@^13.1.1</lov-add-dependency>
+// Import Google Maps types
+import '@/types/google-maps';
 
 interface Stop {
   id: string;
@@ -66,7 +66,7 @@ const Booking = () => {
 
   // Initialize map
   const initMap = () => {
-    if (!mapRef.current || !window.google) return;
+    if (!mapRef.current || !isGoogleMapsLoaded()) return;
 
     // Create map instance
     const mapInstance = new window.google.maps.Map(mapRef.current, {
@@ -101,7 +101,7 @@ const Booking = () => {
 
   // Initialize autocomplete for origin and destination inputs
   const initAutocomplete = () => {
-    if (!window.google || !originInputRef.current || !destinationInputRef.current) return;
+    if (!isGoogleMapsLoaded() || !originInputRef.current || !destinationInputRef.current) return;
 
     const originAutocomplete = new window.google.maps.places.Autocomplete(originInputRef.current);
     originAutocomplete.addListener('place_changed', () => {
@@ -146,7 +146,7 @@ const Booking = () => {
 
   // Calculate route using Google Directions API
   const calculateRoute = useCallback(() => {
-    if (!directionsServiceRef.current || !directionsRendererRef.current || !origin || !destination) return;
+    if (!directionsServiceRef.current || !directionsRendererRef.current || !origin || !destination || !isGoogleMapsLoaded()) return;
 
     // Prepare waypoints from intermediate stops
     const waypoints = intermediateStops.map((stop) => ({
@@ -163,7 +163,7 @@ const Booking = () => {
         travelMode: google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
-        if (status === 'OK' && result) {
+        if (status === google.maps.DirectionsStatus.OK && result) {
           directionsRendererRef.current?.setDirections(result);
           updateRouteDetails(result);
         } else {
@@ -231,7 +231,7 @@ const Booking = () => {
 
     // Create an autocomplete instance for this input
     const input = document.getElementById(`stop-${id}`) as HTMLInputElement;
-    if (input && window.google) {
+    if (input && isGoogleMapsLoaded()) {
       const autocomplete = new window.google.maps.places.Autocomplete(input);
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
@@ -439,7 +439,10 @@ const Booking = () => {
                 </div>
                 
                 {/* Map */}
-                <div className="map-container" ref={mapRef}></div>
+                <div 
+                  className="map-container w-full h-[400px] border rounded-lg overflow-hidden shadow"
+                  ref={mapRef}
+                ></div>
                 
                 <div className="flex justify-between items-center text-sm">
                   <div>

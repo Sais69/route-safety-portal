@@ -2,9 +2,16 @@
 // Google Maps API key
 export const GOOGLE_MAPS_API_KEY = "AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s1s5Hvg";
 
+// Check if Google Maps API is loaded
+export const isGoogleMapsLoaded = (): boolean => {
+  return typeof window !== 'undefined' && 
+         window.google !== undefined && 
+         window.google.maps !== undefined;
+};
+
 // Load Google Maps API script
 export const loadGoogleMapsScript = () => {
-  if (window.google && window.google.maps) {
+  if (isGoogleMapsLoaded()) {
     return Promise.resolve();
   }
 
