@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +40,12 @@ interface BookingFormProps {
   }>;
 }
 
+interface UserData {
+  name: string;
+  email: string;
+  phone: string;
+}
+
 const BookingForm: React.FC<BookingFormProps> = ({
   vehicleType,
   setVehicleType,
@@ -61,6 +67,27 @@ const BookingForm: React.FC<BookingFormProps> = ({
   destinationPlace,
   intermediateStops
 }) => {
+  // User data state - would normally be fetched from authentication context
+  const [userData, setUserData] = useState<UserData>({
+    name: "Usuario Ejemplo",
+    email: "usuario@ejemplo.com",
+    phone: ""
+  });
+
+  // Simulating fetching user data from login
+  useEffect(() => {
+    // In a real application, this would fetch user data from a context or API
+    // For now, we'll simulate having user data from login
+    const loggedInUser = localStorage.getItem("user");
+    if (loggedInUser) {
+      try {
+        setUserData(JSON.parse(loggedInUser));
+      } catch (e) {
+        console.error("Error parsing user data", e);
+      }
+    }
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -78,12 +105,18 @@ const BookingForm: React.FC<BookingFormProps> = ({
       toast.error('Por favor, seleccione una fecha y hora de retorno');
       return;
     }
+
+    if (!userData.phone) {
+      toast.error('Por favor, ingrese un número de teléfono');
+      return;
+    }
     
     // Simulate booking submission
     toast.success('¡Reserva realizada con éxito!');
     
     // Log booking details
     console.log({
+      userData,
       origin: originPlace,
       destination: destinationPlace,
       intermediateStops,
@@ -108,6 +141,48 @@ const BookingForm: React.FC<BookingFormProps> = ({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* User information */}
+          <div className="space-y-4">
+            <h3 className="font-medium">Información personal</h3>
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre</Label>
+              <Input 
+                id="name" 
+                value={userData.name} 
+                onChange={(e) => setUserData({...userData, name: e.target.value})} 
+                readOnly 
+                className="bg-gray-50"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={userData.email} 
+                onChange={(e) => setUserData({...userData, email: e.target.value})} 
+                readOnly 
+                className="bg-gray-50"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">Teléfono <span className="text-red-500">*</span></Label>
+              <Input 
+                id="phone" 
+                type="tel" 
+                value={userData.phone} 
+                onChange={(e) => setUserData({...userData, phone: e.target.value})} 
+                required
+                placeholder="Ej: +34 600 000 000"
+              />
+            </div>
+          </div>
+          
+          <Separator />
+          
           {/* Vehicle selection */}
           <div className="space-y-3">
             <Label>Tipo de vehículo</Label>
@@ -120,21 +195,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <RadioGroupItem value="furgoneta" id="furgoneta" />
                 <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
                   <div>Furgoneta</div>
-                  <div className="text-sm text-gray-500">17 pasajeros - $0.8/km</div>
+                  <div className="text-sm text-gray-500">17 pasajeros</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="microbus" id="microbus" />
                 <Label htmlFor="microbus" className="flex-1 cursor-pointer">
                   <div>Microbús</div>
-                  <div className="text-sm text-gray-500">28 pasajeros - $1.1/km</div>
+                  <div className="text-sm text-gray-500">28 pasajeros</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="bus" id="bus" />
                 <Label htmlFor="bus" className="flex-1 cursor-pointer">
                   <div>Bus</div>
-                  <div className="text-sm text-gray-500">40 pasajeros - $1.5/km</div>
+                  <div className="text-sm text-gray-500">40 pasajeros</div>
                 </Label>
               </div>
             </RadioGroup>
@@ -195,30 +270,29 @@ const BookingForm: React.FC<BookingFormProps> = ({
             
             {roundTrip && (
               <div className="space-y-3 fade-in">
-                <Label>Fecha de retorno</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {returnDate ? format(returnDate, 'PPP', { locale: es }) : 'Seleccionar fecha'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={returnDate}
-                      onSelect={setReturnDate}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label>Fecha y hora de retorno</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {returnDate ? format(returnDate, 'PPP', { locale: es }) : 'Seleccionar fecha'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={returnDate}
+                        onSelect={setReturnDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
 
-                <div className="space-y-2">
-                  <Label htmlFor="returnTime">Hora de retorno</Label>
                   <div className="flex items-center">
                     <Clock className="mr-2 h-4 w-4 text-gray-500" />
                     <Input

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Users } from "lucide-react";
@@ -63,14 +63,8 @@ const VehiclesSection = () => {
                           <iframe 
                             title={vehicle.name}
                             frameBorder="0"
-                            allowFullScreen
-                            mozallowfullscreen="true"
-                            webkitallowfullscreen="true"
+                            allowFullScreen={true}
                             allow="autoplay; fullscreen; xr-spatial-tracking"
-                            xr-spatial-tracking
-                            execution-while-out-of-viewport
-                            execution-while-not-rendered
-                            web-share
                             src={vehicle.embedSrc}
                             className="w-full h-full"
                           />
@@ -122,7 +116,12 @@ const VehiclesSection = () => {
                 variant="outline" 
                 size="icon"
                 className="carousel-mobile-prev h-8 w-8 rounded-full"
-                onClick={() => document.querySelector('.carousel-prev')?.click()}
+                onClick={() => {
+                  const prevButton = document.querySelector('.carousel-prev');
+                  if (prevButton instanceof HTMLElement) {
+                    prevButton.click();
+                  }
+                }}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -130,12 +129,47 @@ const VehiclesSection = () => {
                 variant="outline" 
                 size="icon"
                 className="carousel-mobile-next h-8 w-8 rounded-full"
-                onClick={() => document.querySelector('.carousel-next')?.click()}
+                onClick={() => {
+                  const nextButton = document.querySelector('.carousel-next');
+                  if (nextButton instanceof HTMLElement) {
+                    nextButton.click();
+                  }
+                }}
               >
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </Carousel>
+
+          {/* Large visible navigation buttons */}
+          <div className="mt-8 flex justify-center space-x-4">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="flex items-center gap-2"
+              onClick={() => {
+                const prevButton = document.querySelector('.carousel-prev');
+                if (prevButton instanceof HTMLElement) {
+                  prevButton.click();
+                }
+              }}
+            >
+              <ArrowLeft className="h-5 w-5" /> Anterior
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="flex items-center gap-2"
+              onClick={() => {
+                const nextButton = document.querySelector('.carousel-next');
+                if (nextButton instanceof HTMLElement) {
+                  nextButton.click();
+                }
+              }}
+            >
+              Siguiente <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </div>
     </section>
