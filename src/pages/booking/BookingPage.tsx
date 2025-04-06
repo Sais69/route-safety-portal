@@ -34,7 +34,7 @@ const BookingPage: React.FC = () => {
   const [returnTime, setReturnTime] = useState('18:00');
   const [totalCost, setTotalCost] = useState('0');
 
-  // Calculate route using Google Directions API
+  // Calculate route using Google Directions API with directionsRenderer
   const calculateRoute = useCallback(() => {
     if (!window.google || !origin || !destination) return;
 
@@ -56,9 +56,10 @@ const BookingPage: React.FC = () => {
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
-          // The directions renderer will handle displaying the route
-          // We just need to update the cost calculation
+          // Ensure the result gets passed to MapSection for rendering
           updateCost(distance);
+        } else {
+          console.error('Directions request failed with status: ', status);
         }
       }
     );

@@ -74,10 +74,10 @@ const MapSection: React.FC<MapSectionProps> = ({
 
   // Update route when origin, destination, or intermediate stops change
   useEffect(() => {
-    if (origin && destination) {
-      calculateRoute();
+    if (origin && destination && directionsRendererRef.current && directionsServiceRef.current) {
+      updateRoute();
     }
-  }, [origin, destination, intermediateStops, isEditingMarkers, calculateRoute]);
+  }, [origin, destination, intermediateStops]);
 
   // Update drag and drop behavior for marker editing
   useEffect(() => {
@@ -106,6 +106,8 @@ const MapSection: React.FC<MapSectionProps> = ({
     const directionsRenderer = new window.google.maps.DirectionsRenderer({
       draggable: isEditingMarkers,
       map: mapInstance,
+      suppressMarkers: false,
+      preserveViewport: false,
     });
     directionsRendererRef.current = directionsRenderer;
 
@@ -120,6 +122,35 @@ const MapSection: React.FC<MapSectionProps> = ({
 
     // Initialize autocomplete for origin and destination inputs
     initAutocomplete();
+  };
+
+  const updateRoute = () => {
+    if (!origin || !destination || !directionsServiceRef.current || !directionsRendererRef.current) return;
+
+    const waypoints = intermediateStops.map((stop) => ({
+      location: stop.location,
+      stopover: true,
+    }));
+
+    directionsServiceRef.current.route(
+      {
+        origin: origin,
+        destination: destination,
+        waypoints: waypoints,
+        optimizeWaypoints: false,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          // Set the directions result to render it on the map
+          directionsRendererRef.current?.setDirections(result);
+          updateRouteDetails(result);
+        } else {
+          console.error('Directions request failed with status: ', status);
+          toast.error('Error al calcular la ruta. Por favor, inténtelo de nuevo.');
+        }
+      }
+    );
   };
 
   const initAutocomplete = () => {
@@ -361,6 +392,14 @@ const MapSection: React.FC<MapSectionProps> = ({
           <div>
             <span className="font-medium">Distancia total:</span> {distance.toFixed(1)} km
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => updateRoute()}
+            disabled={!origin || !destination}
+          >
+            Actualizar ruta
+          </Button>
         </div>
       </CardContent>
     </Card>
