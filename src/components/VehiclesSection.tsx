@@ -95,8 +95,8 @@ const VehiclesSection = () => {
                         </div>
 
                         <Link to="/booking" className="w-full">
-                          <Button className="w-full animated-button">
-                            <span>Reservar Ahora</span>
+                          <Button className="w-full bg-primary text-white hover:bg-primary/90">
+                            Reservar Ahora
                           </Button>
                         </Link>
                       </div>

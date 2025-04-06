@@ -87,6 +87,77 @@ const BookingPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Map and route section */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Date and Time Selection Moved to Top */}
+            <div className="bg-white p-6 rounded-lg shadow-md mb-4">
+              <h2 className="text-xl font-semibold mb-4">Fecha y Hora del Viaje</h2>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <div className="font-medium text-sm">Ida</div>
+                  <div className="flex space-x-2">
+                    <div className="flex-1">
+                      <label className="text-sm text-gray-500">Fecha</label>
+                      <input 
+                        type="date"
+                        className="w-full border rounded p-2"
+                        value={departureDate ? departureDate.toISOString().split('T')[0] : ''}
+                        onChange={(e) => setDepartureDate(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-sm text-gray-500">Hora</label>
+                      <input 
+                        type="time"
+                        className="w-full border rounded p-2"
+                        value={departureTime}
+                        onChange={(e) => setDepartureTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {roundTrip && (
+                  <div className="space-y-2">
+                    <div className="font-medium text-sm">Vuelta</div>
+                    <div className="flex space-x-2">
+                      <div className="flex-1">
+                        <label className="text-sm text-gray-500">Fecha</label>
+                        <input 
+                          type="date"
+                          className="w-full border rounded p-2"
+                          value={returnDate ? returnDate.toISOString().split('T')[0] : ''}
+                          onChange={(e) => setReturnDate(e.target.value ? new Date(e.target.value) : undefined)}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-sm text-gray-500">Hora</label>
+                        <input 
+                          type="time"
+                          className="w-full border rounded p-2"
+                          value={returnTime}
+                          onChange={(e) => setReturnTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 flex items-center">
+                <div className="flex items-center">
+                  <input 
+                    id="roundtrip-checkbox" 
+                    type="checkbox" 
+                    className="h-4 w-4 text-primary border-gray-300 rounded"
+                    checked={roundTrip}
+                    onChange={(e) => setRoundTrip(e.target.checked)}
+                  />
+                  <label htmlFor="roundtrip-checkbox" className="ml-2 block text-sm text-gray-700">
+                    Ida y Vuelta
+                  </label>
+                </div>
+              </div>
+            </div>
+            
             <MapSection 
               origin={origin}
               destination={destination}

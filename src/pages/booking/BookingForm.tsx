@@ -4,15 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { CalendarIcon, Clock } from 'lucide-react';
 
 interface BookingFormProps {
   vehicleType: string;
@@ -169,7 +164,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="phone">Teléfono <span className="text-red-500">*</span></Label>
+              <Label htmlFor="phone" className="flex items-center">
+                Teléfono <span className="text-red-500 ml-1">*</span>
+              </Label>
               <Input 
                 id="phone" 
                 type="tel" 
@@ -178,6 +175,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 required
                 placeholder="Ej: +34 600 000 000"
               />
+              <p className="text-xs text-gray-500">Campo obligatorio</p>
             </div>
           </div>
           
@@ -215,98 +213,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </RadioGroup>
           </div>
           
-          {/* Round trip toggle */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="roundtrip">Ida y vuelta</Label>
-            <Switch 
-              id="roundtrip" 
-              checked={roundTrip}
-              onCheckedChange={setRoundTrip}
-            />
-          </div>
-          
-          <Separator />
-          
-          {/* Date and time selection */}
-          <div className="space-y-4">
-            <h3 className="font-medium">Fecha y hora</h3>
-            
-            <div className="space-y-3">
-              <Label>Fecha de salida</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {departureDate ? format(departureDate, 'PPP', { locale: es }) : 'Seleccionar fecha'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={departureDate}
-                    onSelect={setDepartureDate}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <div className="space-y-2">
-                <Label htmlFor="departureTime">Hora de salida</Label>
-                <div className="flex items-center">
-                  <Clock className="mr-2 h-4 w-4 text-gray-500" />
-                  <Input
-                    id="departureTime"
-                    type="time"
-                    value={departureTime}
-                    onChange={(e) => setDepartureTime(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {roundTrip && (
-              <div className="space-y-3 fade-in">
-                <Label>Fecha y hora de retorno</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {returnDate ? format(returnDate, 'PPP', { locale: es }) : 'Seleccionar fecha'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={returnDate}
-                        onSelect={setReturnDate}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  <div className="flex items-center">
-                    <Clock className="mr-2 h-4 w-4 text-gray-500" />
-                    <Input
-                      id="returnTime"
-                      type="time"
-                      value={returnTime}
-                      onChange={(e) => setReturnTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          
           <Separator />
           
           {/* Cost summary */}
@@ -327,8 +233,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
           </div>
           
-          <Button type="submit" className="w-full animated-button">
-            Confirmar reserva
+          <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90">
+            Reservar Ahora
           </Button>
         </form>
       </CardContent>

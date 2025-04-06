@@ -91,9 +91,9 @@ const MapSection: React.FC<MapSectionProps> = ({
   const initMap = () => {
     if (!mapRef.current || !isGoogleMapsLoaded()) return;
 
-    // Create map instance
+    // Create map instance - Default to Ecuador
     const mapInstance = new window.google.maps.Map(mapRef.current, {
-      center: { lat: 40.4167, lng: -3.7033 }, // Madrid, Spain as default center
+      center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador as default center
       zoom: 13,
       mapTypeControl: false,
     });
@@ -213,8 +213,8 @@ const MapSection: React.FC<MapSectionProps> = ({
         id: `stop-${Date.now()}`, 
         placeName: `Parada ${intermediateStops.length + 1}`,
         location: {
-          lat: origin ? origin.lat + (Math.random() * 0.01) : 40.4167,
-          lng: origin ? origin.lng + (Math.random() * 0.01) : -3.7033
+          lat: origin ? origin.lat + (Math.random() * 0.01) : -0.1807,
+          lng: origin ? origin.lng + (Math.random() * 0.01) : -78.4678
         }
       }
     ]);
@@ -275,15 +275,6 @@ const MapSection: React.FC<MapSectionProps> = ({
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>Configurar ruta</span>
-          <Button 
-            variant={isEditingMarkers ? "default" : "outline"} 
-            size="sm" 
-            onClick={() => setIsEditingMarkers(!isEditingMarkers)}
-            className="flex items-center space-x-2"
-          >
-            <Edit2 size={16} />
-            <span>{isEditingMarkers ? 'Terminar edición' : 'Editar marcadores'}</span>
-          </Button>
         </CardTitle>
         <CardDescription>
           Seleccione los puntos de origen y destino, y añada paradas intermedias si lo desea
@@ -383,10 +374,23 @@ const MapSection: React.FC<MapSectionProps> = ({
         </div>
         
         {/* Map */}
-        <div 
-          className="map-container w-full h-[400px] border rounded-lg overflow-hidden shadow"
-          ref={mapRef}
-        ></div>
+        <div className="relative">
+          <div 
+            className="map-container w-full h-[400px] border rounded-lg overflow-hidden shadow"
+            ref={mapRef}
+          ></div>
+          
+          {/* Edit Markers Button - Now inside the map */}
+          <Button 
+            variant={isEditingMarkers ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setIsEditingMarkers(!isEditingMarkers)}
+            className="absolute top-4 right-4 z-10 flex items-center space-x-2 bg-white shadow-md"
+          >
+            <Edit2 size={16} />
+            <span>{isEditingMarkers ? 'Terminar edición' : 'Editar marcadores'}</span>
+          </Button>
+        </div>
         
         <div className="flex justify-between items-center text-sm">
           <div>

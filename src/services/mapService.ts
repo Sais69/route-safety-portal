@@ -28,29 +28,27 @@ export const loadGoogleMapsScript = () => {
 
 // Function to calculate the cost based on vehicle type and distance
 export const calculateCost = (vehicleType: string, distanceInKm: number, roundTrip: boolean = false) => {
-  let ratePerKm = 0;
+  let baseCost: number;
 
   switch (vehicleType) {
     case 'furgoneta':
-      ratePerKm = 0.8;
+      baseCost = 80 + (distanceInKm * 0.5);
       break;
     case 'microbus':
-      ratePerKm = 1.1;
+      baseCost = 120 + (distanceInKm * 0.7);
       break;
     case 'bus':
-      ratePerKm = 1.5;
+      baseCost = 160 + (distanceInKm * 0.9);
       break;
     default:
-      ratePerKm = 0.8;
+      baseCost = 80 + (distanceInKm * 0.5);
   }
-
-  let cost = distanceInKm * ratePerKm;
   
   if (roundTrip) {
-    cost *= 2;
+    baseCost *= 1.8; // 20% discount for round trips
   }
 
-  return cost.toFixed(2);
+  return baseCost.toFixed(2);
 };
 
 // Helper function to format the date for display
@@ -61,4 +59,9 @@ export const formatDate = (date: Date): string => {
 // Helper function to format the time for display
 export const formatTime = (date: Date): string => {
   return date.toTimeString().split(' ')[0].substring(0, 5);
+};
+
+// Get Ecuadorian default coordinates
+export const getDefaultCoordinates = () => {
+  return { lat: -0.1807, lng: -78.4678 }; // Quito, Ecuador
 };
