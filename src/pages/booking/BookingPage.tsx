@@ -5,8 +5,9 @@ import BookingHeader from './BookingHeader';
 import MapSection from './MapSection';
 import BookingForm from './BookingForm';
 
-// Import Google Maps types
-import '@/types/google-maps';
+// Use direct import for Google Maps types
+// The .d.ts file provides types without needing an import
+// Removing the import that was causing the error
 
 interface Stop {
   id: string;

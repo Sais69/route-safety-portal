@@ -9,8 +9,8 @@ import { loadGoogleMapsScript, isGoogleMapsLoaded } from '@/services/mapService'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
-// Import Google Maps types
-import '@/types/google-maps';
+// Removing the import that was causing the error
+// The types are globally available from the types/google-maps.d.ts file
 
 interface Stop {
   id: string;
