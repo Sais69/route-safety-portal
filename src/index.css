@@ -86,7 +86,7 @@
 }
 
 .animated-button span {
-  @apply absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-y-full bg-indigo-500 ease;
+  @apply absolute inset-0 flex items-center justify-center w-full h-full text-white duration-300 -translate-y-full bg-indigo-500;
 }
 
 /* Fixed: moved group-hover to component usage instead of CSS */
@@ -96,7 +96,7 @@
 
 .animated-button:after {
   content: "";
-  @apply absolute left-0 bottom-0 w-full h-12 duration-300 bg-indigo-500 rounded-2xl translate-y-full ease;
+  @apply absolute left-0 bottom-0 w-full h-12 duration-300 bg-indigo-500 rounded-2xl translate-y-full;
   z-index: -1;
 }
 
