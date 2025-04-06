@@ -66,8 +66,10 @@ const VehiclesSection = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Link to="/register" className="w-full">
-                  <Button className="w-full animated-button">Reservar</Button>
+                <Link to="/register" className="w-full group">
+                  <Button className="w-full animated-button">
+                    <span>Reservar</span>
+                  </Button>
                 </Link>
               </CardFooter>
             </Card>

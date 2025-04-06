@@ -26,8 +26,10 @@ const Index = () => {
                 y disfrutar de viajes seguros con monitoreo GPS en tiempo real.
               </p>
               <div className="flex justify-center space-x-4">
-                <Link to="/register">
-                  <Button size="lg" className="animated-button pulse">Registrarse</Button>
+                <Link to="/register" className="group">
+                  <Button size="lg" className="animated-button pulse">
+                    <span>Registrarse</span>
+                  </Button>
                 </Link>
                 <Link to="/login">
                   <Button size="lg" variant="outline">Iniciar Sesión</Button>

@@ -27,8 +27,10 @@ const Header = () => {
           <Link to="/login">
             <Button variant="outline">Iniciar Sesión</Button>
           </Link>
-          <Link to="/register">
-            <Button className="animated-button">Registrarse</Button>
+          <Link to="/register" className="group">
+            <Button className="animated-button">
+              <span>Registrarse</span>
+            </Button>
           </Link>
         </div>
       </div>

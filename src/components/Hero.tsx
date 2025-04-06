@@ -17,9 +17,9 @@ const Hero = () => {
             de seguridad, incluyendo monitoreo GPS en tiempo real.
           </p>
           <div className="flex flex-wrap gap-4">
-            <Link to="/register">
+            <Link to="/register" className="group">
               <Button size="lg" className="animated-button">
-                Reservar Ahora
+                <span>Reservar Ahora</span>
               </Button>
             </Link>
             <a href="#vehicles">
