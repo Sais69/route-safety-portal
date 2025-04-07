@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -57,12 +58,15 @@ const MapSection: React.FC<MapSectionProps> = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
-  const [autocompleteOrigin, setAutocompleteOrigin] = useState<google.maps.places.Autocomplete | null>(null);
-  const [autocompleteDestination, setAutocompleteDestination] = useState<google.maps.places.Autocomplete | null>(null);
   const [newStopName, setNewStopName] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const originInputRef = useRef<HTMLInputElement>(null);
+  const destinationInputRef = useRef<HTMLInputElement>(null);
+  const newStopInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Initialize map and autocomplete services
+  // Initialize map and directions service
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
@@ -72,67 +76,94 @@ const MapSection: React.FC<MapSectionProps> = ({
       mapId: 'YOUR_MAP_ID',
     });
 
-    const originInput = document.getElementById('origin-input') as HTMLInputElement;
-    const destinationInput = document.getElementById('destination-input') as HTMLInputElement;
-
-    const newAutocompleteOrigin = new window.google.maps.places.Autocomplete(originInput);
-    const newAutocompleteDestination = new window.google.maps.places.Autocomplete(destinationInput);
-
-    newAutocompleteOrigin.bindTo('bounds', newMap);
-    newAutocompleteDestination.bindTo('bounds', newMap);
-
-    // Bias the Autocomplete object to the user's geographical location,
-    // as supplied by the browser's 'navigator.geolocation' object.
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const geolocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          const circle = new window.google.maps.Circle({
-            center: geolocation,
-            radius: position.coords.accuracy,
-          });
-          newAutocompleteOrigin.setBounds(circle.getBounds() || undefined);
-          newAutocompleteDestination.setBounds(circle.getBounds() || undefined);
-        },
-      );
-    }
-
-    newAutocompleteOrigin.addListener('place_changed', () => {
-      const place = newAutocompleteOrigin.getPlace();
-      if (!place.geometry) {
-        console.log("Returned place contains no geometry");
-        return;
-      }
-      setOrigin({
-        lat: place.geometry.location!.lat(),
-        lng: place.geometry.location!.lng(),
-      });
-      setOriginPlace(place.formatted_address || '');
-    });
-
-    newAutocompleteDestination.addListener('place_changed', () => {
-      const place = newAutocompleteDestination.getPlace();
-      if (!place.geometry) {
-        console.log("Returned place contains no geometry");
-        return;
-      }
-      setDestination({
-        lat: place.geometry.location!.lat(),
-        lng: place.geometry.location!.lng(),
-      });
-      setDestinationPlace(place.formatted_address || '');
-    });
-
     setMap(newMap);
-    setAutocompleteOrigin(newAutocompleteOrigin);
-    setAutocompleteDestination(newAutocompleteDestination);
 
     const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({ map: newMap });
     setDirectionsRenderer(newDirectionsRenderer);
+    
+    return () => {
+      newDirectionsRenderer.setMap(null);
+    };
   }, []);
+
+  // Initialize place autocomplete
+  useEffect(() => {
+    if (!window.google || !map) return;
+
+    // Setup autocomplete for origin, destination, and new stop input fields
+    if (originInputRef.current) {
+      setupPlaceAutocomplete(originInputRef.current, (place) => {
+        if (!place.geometry) {
+          console.log("Returned place contains no geometry");
+          return;
+        }
+        setOrigin({
+          lat: place.geometry.location!.lat(),
+          lng: place.geometry.location!.lng(),
+        });
+        setOriginPlace(place.formatted_address || '');
+      });
+    }
+
+    if (destinationInputRef.current) {
+      setupPlaceAutocomplete(destinationInputRef.current, (place) => {
+        if (!place.geometry) {
+          console.log("Returned place contains no geometry");
+          return;
+        }
+        setDestination({
+          lat: place.geometry.location!.lat(),
+          lng: place.geometry.location!.lng(),
+        });
+        setDestinationPlace(place.formatted_address || '');
+      });
+    }
+    
+    if (newStopInputRef.current) {
+      setupPlaceAutocomplete(newStopInputRef.current, (place) => {
+        if (!place.geometry) return;
+        
+        // Add the selected place as a stop
+        addNewStop(
+          place.formatted_address || place.name || '',
+          {
+            lat: place.geometry.location!.lat(),
+            lng: place.geometry.location!.lng(),
+          }
+        );
+        setNewStopName('');
+      });
+    }
+    
+  }, [map]);
+
+  // Setup place autocomplete for an input element
+  const setupPlaceAutocomplete = (
+    inputElement: HTMLInputElement, 
+    callback: (place: google.maps.places.PlaceResult) => void
+  ) => {
+    try {
+      const autocomplete = new window.google.maps.places.Autocomplete(inputElement, {
+        fields: ['geometry', 'formatted_address', 'name'],
+      });
+      
+      if (map) {
+        autocomplete.bindTo('bounds', map);
+      }
+      
+      // Bias the autocomplete results towards current map's viewport.
+      map?.addListener('bounds_changed', () => {
+        autocomplete.setBounds(map.getBounds() as google.maps.LatLngBounds);
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        callback(place);
+      });
+    } catch (error) {
+      console.error("Error setting up place autocomplete:", error);
+    }
+  };
 
   // Calculate route on origin or destination change
   useEffect(() => {
@@ -193,22 +224,104 @@ const MapSection: React.FC<MapSectionProps> = ({
     );
   };
 
-  // Add intermediate stop
+  // Handle input change for new stop field and fetch suggestions
+  const handleNewStopInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNewStopName(value);
+    
+    if (value.length > 2) {
+      fetchPlaceSuggestions(value);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+  
+  // Fetch place suggestions based on input text
+  const fetchPlaceSuggestions = (input: string) => {
+    if (!window.google || !map) return;
+    
+    const service = new window.google.maps.places.AutocompleteService();
+    
+    service.getPlacePredictions(
+      {
+        input,
+        componentRestrictions: { country: 'ec' }, // Restrict to Ecuador
+        types: ['geocode', 'establishment'], // Include both addresses and places
+      },
+      (predictions, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          const placeSuggestions = predictions.map(prediction => prediction.description);
+          setSuggestions(placeSuggestions);
+        } else {
+          setSuggestions([]);
+        }
+      }
+    );
+  };
+
+  // Select a suggestion
+  const selectSuggestion = (suggestion: string) => {
+    setNewStopName(suggestion);
+    setShowSuggestions(false);
+    
+    // Get details for the selected place
+    if (map) {
+      const placesService = new window.google.maps.places.PlacesService(map);
+      
+      placesService.findPlaceFromQuery(
+        {
+          query: suggestion,
+          fields: ['geometry', 'formatted_address', 'name'],
+        },
+        (results, status) => {
+          if (status === google.maps.places.PlacesServiceStatus.OK && results && results[0]) {
+            const place = results[0];
+            if (place.geometry && place.geometry.location) {
+              addNewStop(
+                place.formatted_address || place.name || suggestion,
+                {
+                  lat: place.geometry.location.lat(),
+                  lng: place.geometry.location.lng(),
+                }
+              );
+              setNewStopName('');
+            }
+          }
+        }
+      );
+    }
+  };
+
+  // Add new stop
+  const addNewStop = (placeName: string, location: google.maps.LatLngLiteral) => {
+    const newStop: Stop = {
+      id: uuidv4(),
+      placeName,
+      location,
+    };
+    
+    setIntermediateStops(prev => [...prev, newStop]);
+    setNewStopName('');
+  };
+
+  // Add intermediate stop with geocoding
   const addIntermediateStop = () => {
-    if (!map || !newStopName) return;
+    if (!map || !newStopName.trim()) return;
 
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address: newStopName }, (results, status) => {
-      if (status === 'OK' && results) {
+      if (status === 'OK' && results && results[0]) {
         const newStopLocation = results[0].geometry.location;
         const newStop: Stop = {
           id: uuidv4(),
           placeName: newStopName,
           location: { lat: newStopLocation.lat(), lng: newStopLocation.lng() },
         };
-        setIntermediateStops([...intermediateStops, newStop]);
-        setNewStopName(''); // Clear the input field
-        calculateRouteWithDirections(origin!, destination!, [...intermediateStops, newStop]);
+        setIntermediateStops(prev => [...prev, newStop]);
+        setNewStopName('');
+        setShowSuggestions(false);
       } else {
         console.error('Geocode was not successful for the following reason: ' + status);
         toast({
@@ -222,9 +335,7 @@ const MapSection: React.FC<MapSectionProps> = ({
 
   // Remove intermediate stop
   const removeIntermediateStop = (id: string) => {
-    const updatedStops = intermediateStops.filter((stop) => stop.id !== id);
-    setIntermediateStops(updatedStops);
-    calculateRouteWithDirections(origin!, destination!, updatedStops);
+    setIntermediateStops(prev => prev.filter(stop => stop.id !== id));
   };
 
   return (
@@ -246,6 +357,7 @@ const MapSection: React.FC<MapSectionProps> = ({
               value={originPlace}
               onChange={(e) => setOriginPlace(e.target.value)}
               className="pl-8"
+              ref={originInputRef}
             />
           </div>
           <div className="relative">
@@ -257,24 +369,53 @@ const MapSection: React.FC<MapSectionProps> = ({
               value={destinationPlace}
               onChange={(e) => setDestinationPlace(e.target.value)}
               className="pl-8"
+              ref={destinationInputRef}
             />
           </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="new-stop">Parada Intermedia</Label>
-          <div className="flex items-center space-x-2">
+          <div className="relative">
             <Input
               type="text"
               id="new-stop"
               placeholder="Añadir parada intermedia"
               value={newStopName}
-              onChange={(e) => setNewStopName(e.target.value)}
+              onChange={handleNewStopInputChange}
+              ref={newStopInputRef}
+              onBlur={() => {
+                // Delay hiding suggestions to allow click events on the suggestions
+                setTimeout(() => setShowSuggestions(false), 200);
+              }}
+              onFocus={() => {
+                if (newStopName.length > 2) {
+                  setShowSuggestions(true);
+                }
+              }}
             />
-            <Button type="button" size="sm" onClick={addIntermediateStop}>
-              <Plus className="h-4 w-4 mr-2" />
-              Añadir
-            </Button>
+            
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                {suggestions.map((suggestion, index) => (
+                  <div 
+                    key={index}
+                    className="cursor-pointer px-4 py-2 text-sm hover:bg-gray-100"
+                    onClick={() => selectSuggestion(suggestion)}
+                  >
+                    {suggestion}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="mt-2">
+              <Button type="button" size="sm" onClick={addIntermediateStop}>
+                <Plus className="h-4 w-4 mr-2" />
+                Añadir
+              </Button>
+            </div>
           </div>
         </div>
 
