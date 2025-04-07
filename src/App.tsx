@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import Booking from "./pages/Booking";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
+import ThreeDMarqueeDemoSecond from "./components/3d-marquee-demo-2";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/booking" element={<Booking />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

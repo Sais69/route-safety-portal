@@ -21,12 +21,13 @@ export const loadGoogleMapsScript = () => {
     existingScripts.forEach(script => script.remove());
     
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMaps`;
     script.async = true;
     script.defer = true;
     
     // Define the callback function that Google Maps will call when loaded
-    window.initMap = () => {
+    // @ts-ignore - Define the callback on the window object
+    window.initGoogleMaps = () => {
       console.log("Google Maps API loaded successfully");
       resolve();
     };
