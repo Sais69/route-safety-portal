@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Booking from "./pages/Booking";
+import MyBookings from "./pages/MyBookings";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
 import ThreeDMarqueeDemoSecond from "./components/3d-marquee-demo-2";
@@ -29,6 +30,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/booking" element={<Booking />} />
+              <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
               <Route path="*" element={<NotFound />} />

@@ -33,7 +33,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route } from "lucide-react";
 import { toast } from "sonner";
 
 // Booking interface
@@ -54,7 +54,7 @@ interface Booking {
   departureTime: string;
   returnDate: string | Date | null;
   returnTime: string | null;
-  status: 'pendiente' | 'designada' | 'negada' | 'realizada';
+  status: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada';
   cost: number | string;
   distance: number;
   duration?: string;
@@ -68,6 +68,9 @@ const AdminPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [totalDistance, setTotalDistance] = useState(0);
+  const [completedBookings, setCompletedBookings] = useState(0);
 
   // Load bookings from localStorage
   useEffect(() => {
@@ -75,7 +78,18 @@ const AdminPage: React.FC = () => {
       const storedBookings = localStorage.getItem('bookings');
       if (storedBookings) {
         try {
-          setBookings(JSON.parse(storedBookings));
+          const parsedBookings = JSON.parse(storedBookings);
+          setBookings(parsedBookings);
+          setTotalBookings(parsedBookings.length);
+          
+          // Calculate stats
+          const completed = parsedBookings.filter(b => b.status === 'realizada').length;
+          setCompletedBookings(completed);
+          
+          const totalDist = parsedBookings
+            .filter(booking => booking.status === 'realizada')
+            .reduce((total, booking) => total + booking.distance, 0);
+          setTotalDistance(totalDist);
         } catch (e) {
           console.error('Error parsing bookings', e);
         }
@@ -102,13 +116,20 @@ const AdminPage: React.FC = () => {
   );
 
   // Update booking status
-  const updateBookingStatus = (id: string, newStatus: 'pendiente' | 'designada' | 'negada' | 'realizada') => {
+  const updateBookingStatus = (id: string, newStatus: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada') => {
     const updatedBookings = bookings.map(booking => 
       booking.id === id ? { ...booking, status: newStatus } : booking
     );
     
     setBookings(updatedBookings);
     localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+    
+    // Update statistics
+    setCompletedBookings(updatedBookings.filter(b => b.status === 'realizada').length);
+    const totalDist = updatedBookings
+      .filter(booking => booking.status === 'realizada')
+      .reduce((total, booking) => total + booking.distance, 0);
+    setTotalDistance(totalDist);
     
     toast.success(`Estado de reserva actualizado a: ${newStatus}`);
   };
@@ -117,6 +138,8 @@ const AdminPage: React.FC = () => {
     switch (status) {
       case 'designada':
         return 'bg-blue-100 text-blue-800';
+      case 'en curso':
+        return 'bg-purple-100 text-purple-800';
       case 'negada':
         return 'bg-red-100 text-red-800';
       case 'realizada':
@@ -130,6 +153,8 @@ const AdminPage: React.FC = () => {
     switch (status) {
       case 'designada':
         return <AlertCircle className="h-3 w-3 mr-1" />;
+      case 'en curso':
+        return <Route className="h-3 w-3 mr-1" />;
       case 'negada':
         return <XCircle className="h-3 w-3 mr-1" />;
       case 'realizada':
@@ -194,6 +219,64 @@ const AdminPage: React.FC = () => {
           >
             Volver al sitio
           </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Reservas</CardDescription>
+              <CardTitle className="text-3xl">{totalBookings}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-xs text-muted-foreground">
+                Todas las reservas registradas
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Reservas Completadas</CardDescription>
+              <CardTitle className="text-3xl">{completedBookings}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-xs text-muted-foreground">
+                {completedBookings > 0 ? `${Math.round((completedBookings / totalBookings) * 100)}% del total` : '0% del total'}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Distancia Total</CardDescription>
+              <CardTitle className="text-3xl">{totalDistance.toFixed(2)} km</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-xs text-muted-foreground">
+                Kilometraje total recorrido
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Ingresos Estimados</CardDescription>
+              <CardTitle className="text-3xl">
+                ${bookings
+                  .filter(b => b.status === 'realizada')
+                  .reduce((total, booking) => {
+                    const cost = typeof booking.cost === 'number' ? booking.cost : parseFloat(booking.cost);
+                    return total + (isNaN(cost) ? 0 : cost);
+                  }, 0).toFixed(2)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-xs text-muted-foreground">
+                Reservas completadas
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="bookings" className="space-y-6">
@@ -291,7 +374,7 @@ const AdminPage: React.FC = () => {
                               defaultValue={booking.status}
                               onValueChange={(value) => updateBookingStatus(
                                 booking.id, 
-                                value as 'pendiente' | 'designada' | 'negada' | 'realizada'
+                                value as 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada'
                               )}
                             >
                               <SelectTrigger className="w-[130px]">
@@ -300,8 +383,9 @@ const AdminPage: React.FC = () => {
                               <SelectContent>
                                 <SelectItem value="pendiente">Pendiente</SelectItem>
                                 <SelectItem value="designada">Designada</SelectItem>
-                                <SelectItem value="negada">Negada</SelectItem>
+                                <SelectItem value="en curso">En curso</SelectItem>
                                 <SelectItem value="realizada">Realizada</SelectItem>
+                                <SelectItem value="negada">Negada</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>

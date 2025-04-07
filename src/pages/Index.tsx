@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ThreeDMarquee } from "@/components/ui/3d-marquee";
+import { ChevronRight, Map, Shield, Clock } from "lucide-react";
 
 // Imágenes para el fondo 3D
 const images = [
@@ -28,20 +29,46 @@ const Index = () => {
       <main className="flex-grow">
         <Hero />
         
-        {/* Sección 3D */}
-        <section className="relative w-full h-[80vh] overflow-hidden my-12">
-          <div className="absolute inset-0 z-10 bg-black/70"></div>
+        {/* Sección 3D Mejorada */}
+        <section className="relative w-full h-[90vh] overflow-hidden my-12">
+          <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/40 via-black/70 to-black/80"></div>
           <div className="relative z-20 container mx-auto px-4 h-full flex flex-col items-center justify-center text-center">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+            <span className="bg-gradient-to-r from-indigo-500 to-blue-600 px-4 py-1 rounded-full text-sm font-semibold text-white mb-4">Buker - Tu transporte seguro</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
               Transporte Moderno para el Ecuador
             </h2>
-            <p className="text-xl text-white/80 max-w-2xl mb-8">
+            <p className="text-xl text-white/80 max-w-2xl mb-10">
               Nuestros vehículos cuentan con tecnología de seguimiento GPS en tiempo real
               y conductores profesionales para garantizar su seguridad.
             </p>
-            <Link to="/booking" className="group">
-              <Button size="lg" className="animated-button pulse">
-                <span>Reservar Ahora</span>
+            <div className="flex flex-wrap gap-4 justify-center mb-12">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-5 flex items-start border border-white/20 w-[280px]">
+                <Map className="text-blue-400 mr-3 mt-1" size={22} />
+                <div className="text-left">
+                  <h3 className="text-white font-medium text-lg">Seguimiento GPS</h3>
+                  <p className="text-white/70 text-sm">Monitoree su viaje en tiempo real desde su dispositivo</p>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-5 flex items-start border border-white/20 w-[280px]">
+                <Shield className="text-blue-400 mr-3 mt-1" size={22} />
+                <div className="text-left">
+                  <h3 className="text-white font-medium text-lg">Seguridad Garantizada</h3>
+                  <p className="text-white/70 text-sm">Conductores profesionales y verificados</p>
+                </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-5 flex items-start border border-white/20 w-[280px]">
+                <Clock className="text-blue-400 mr-3 mt-1" size={22} />
+                <div className="text-left">
+                  <h3 className="text-white font-medium text-lg">Puntualidad</h3>
+                  <p className="text-white/70 text-sm">Llegamos a tiempo, siempre</p>
+                </div>
+              </div>
+            </div>
+            <Link to="/booking">
+              <Button size="lg" className="animated-button group relative overflow-hidden bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all">
+                <span className="relative z-10 flex items-center group-hover:translate-x-2 transition-transform">
+                  Reservar Ahora <ChevronRight className="ml-2 h-5 w-5" />
+                </span>
               </Button>
             </Link>
           </div>
@@ -62,14 +89,16 @@ const Index = () => {
                 Regístrese ahora para comenzar a reservar nuestros servicios de transporte
                 y disfrutar de viajes seguros con monitoreo GPS en tiempo real.
               </p>
-              <div className="flex justify-center space-x-4">
-                <Link to="/register" className="group">
-                  <Button size="lg" className="animated-button pulse">
-                    <span>Registrarse</span>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link to="/register">
+                  <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-full shadow-lg hover:shadow-xl transition-all">
+                    Registrarse
                   </Button>
                 </Link>
                 <Link to="/login">
-                  <Button size="lg" variant="outline">Iniciar Sesión</Button>
+                  <Button size="lg" variant="outline" className="px-8 py-3 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-all">
+                    Iniciar Sesión
+                  </Button>
                 </Link>
               </div>
             </div>
