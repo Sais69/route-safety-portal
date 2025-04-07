@@ -24,6 +24,7 @@ const BookingPage: React.FC = () => {
   const [distance, setDistance] = useState<number>(0);
   const [isEditingMarkers, setIsEditingMarkers] = useState(false);
   const [intermediateStops, setIntermediateStops] = useState<Stop[]>([]);
+  const [duration, setDuration] = useState<string>('');
 
   // Form related states
   const [vehicleType, setVehicleType] = useState('furgoneta');
@@ -56,7 +57,19 @@ const BookingPage: React.FC = () => {
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
-          // Ensure the result gets passed to MapSection for rendering
+          // Get duration and set it
+          const route = result.routes[0];
+          if (route && route.legs.length > 0) {
+            let totalDuration = 0;
+            for (let i = 0; i < route.legs.length; i++) {
+              totalDuration += route.legs[i].duration?.value || 0;
+            }
+            // Format duration
+            const hours = Math.floor(totalDuration / 3600);
+            const minutes = Math.floor((totalDuration % 3600) / 60);
+            setDuration(`${hours}h ${minutes}m`);
+          }
+          
           updateCost(distance);
         } else {
           console.error('Directions request failed with status: ', status);
@@ -174,6 +187,7 @@ const BookingPage: React.FC = () => {
               isEditingMarkers={isEditingMarkers}
               setIsEditingMarkers={setIsEditingMarkers}
               calculateRoute={calculateRoute}
+              duration={duration}
             />
           </div>
           
@@ -199,6 +213,7 @@ const BookingPage: React.FC = () => {
               originPlace={originPlace}
               destinationPlace={destinationPlace}
               intermediateStops={intermediateStops}
+              duration={duration}
             />
           </div>
         </div>

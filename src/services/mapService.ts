@@ -1,4 +1,5 @@
 
+
 // Google Maps API key
 export const GOOGLE_MAPS_API_KEY = "AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s1s5Hvg";
 
@@ -32,16 +33,16 @@ export const calculateCost = (vehicleType: string, distanceInKm: number, roundTr
 
   switch (vehicleType) {
     case 'furgoneta':
-      baseCost = 80 + (distanceInKm * 0.5);
+      baseCost = distanceInKm * 0.89;
       break;
     case 'microbus':
-      baseCost = 120 + (distanceInKm * 0.7);
+      baseCost = distanceInKm * 1.29;
       break;
     case 'bus':
-      baseCost = 160 + (distanceInKm * 0.9);
+      baseCost = distanceInKm * 1.69;
       break;
     default:
-      baseCost = 80 + (distanceInKm * 0.5);
+      baseCost = distanceInKm * 0.89;
   }
   
   if (roundTrip) {
@@ -65,3 +66,4 @@ export const formatTime = (date: Date): string => {
 export const getDefaultCoordinates = () => {
   return { lat: -0.1807, lng: -78.4678 }; // Quito, Ecuador
 };
+

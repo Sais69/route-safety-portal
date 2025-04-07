@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { Clock, MapPin } from 'lucide-react';
 
 interface BookingFormProps {
   vehicleType: string;
@@ -33,6 +34,7 @@ interface BookingFormProps {
     placeName: string;
     location: google.maps.LatLngLiteral;
   }>;
+  duration: string;
 }
 
 interface UserData {
@@ -60,7 +62,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
   destination,
   originPlace,
   destinationPlace,
-  intermediateStops
+  intermediateStops,
+  duration
 }) => {
   // User data state - would normally be fetched from authentication context
   const [userData, setUserData] = useState<UserData>({
@@ -110,7 +113,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
     toast.success('¡Reserva realizada con éxito!');
     
     // Log booking details
-    console.log({
+    const bookingData = {
       userData,
       origin: originPlace,
       destination: destinationPlace,
@@ -122,8 +125,26 @@ const BookingForm: React.FC<BookingFormProps> = ({
       returnDate: roundTrip ? returnDate : null,
       returnTime: roundTrip ? returnTime : null,
       distance,
-      totalCost
-    });
+      duration,
+      totalCost,
+      status: 'pendiente'
+    };
+    
+    console.log(bookingData);
+    
+    // Store in localStorage for admin panel
+    const existingBookings = localStorage.getItem('bookings');
+    let bookings = existingBookings ? JSON.parse(existingBookings) : [];
+    
+    // Add a unique ID and timestamp to the booking
+    const newBooking = {
+      ...bookingData,
+      id: `booking-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    
+    bookings.push(newBooking);
+    localStorage.setItem('bookings', JSON.stringify(bookings));
   };
 
   return (
@@ -181,6 +202,37 @@ const BookingForm: React.FC<BookingFormProps> = ({
           
           <Separator />
           
+          {/* Route summary */}
+          <div className="space-y-3">
+            <h3 className="font-medium">Resumen de la ruta</h3>
+            <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+              <div className="flex items-start space-x-2">
+                <MapPin className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <p className="text-sm text-gray-500">Origen</p>
+                  <p className="font-medium">{originPlace || "No seleccionado"}</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-2">
+                <MapPin className="h-5 w-5 text-primary mt-0.5" fill="currentColor" />
+                <div>
+                  <p className="text-sm text-gray-500">Destino</p>
+                  <p className="font-medium">{destinationPlace || "No seleccionado"}</p>
+                </div>
+              </div>
+              {intermediateStops.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-sm text-gray-500 mb-1">Paradas intermedias</p>
+                  {intermediateStops.map(stop => (
+                    <p key={stop.id} className="text-sm">{stop.placeName}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <Separator />
+          
           {/* Vehicle selection */}
           <div className="space-y-3">
             <Label>Tipo de vehículo</Label>
@@ -193,21 +245,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <RadioGroupItem value="furgoneta" id="furgoneta" />
                 <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
                   <div>Furgoneta</div>
-                  <div className="text-sm text-gray-500">17 pasajeros</div>
+                  <div className="text-sm text-gray-500">17 pasajeros - $0.89/km</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="microbus" id="microbus" />
                 <Label htmlFor="microbus" className="flex-1 cursor-pointer">
                   <div>Microbús</div>
-                  <div className="text-sm text-gray-500">28 pasajeros</div>
+                  <div className="text-sm text-gray-500">28 pasajeros - $1.29/km</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="bus" id="bus" />
                 <Label htmlFor="bus" className="flex-1 cursor-pointer">
                   <div>Bus</div>
-                  <div className="text-sm text-gray-500">40 pasajeros</div>
+                  <div className="text-sm text-gray-500">40 pasajeros - $1.69/km</div>
                 </Label>
               </div>
             </RadioGroup>
@@ -220,6 +272,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
             <div className="flex justify-between items-center">
               <span>Distancia:</span>
               <span>{distance.toFixed(1)} km</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="flex items-center">
+                <Clock className="h-4 w-4 mr-2" /> Tiempo estimado:
+              </span>
+              <span>{duration || "Calculando..."}</span>
             </div>
             {roundTrip && (
               <div className="flex justify-between items-center text-sm text-gray-500">

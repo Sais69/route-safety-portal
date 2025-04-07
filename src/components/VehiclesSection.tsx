@@ -19,7 +19,7 @@ const VehiclesSection = () => {
       name: "Furgoneta",
       description: "Ideal para grupos pequeños",
       capacity: 17,
-      pricePerKm: 0.8,
+      pricePerKm: 0.89,
       embedSrc: "https://sketchfab.com/models/e2c6fe369b5a4b0393a20d446bf3189c/embed"
     },
     {
@@ -27,7 +27,7 @@ const VehiclesSection = () => {
       name: "Microbús",
       description: "Perfecto para grupos medianos",
       capacity: 28,
-      pricePerKm: 1.1,
+      pricePerKm: 1.29,
       embedSrc: "https://sketchfab.com/models/e84d81d89c3746f399269c2b9103fad2/embed"
     },
     {
@@ -35,7 +35,7 @@ const VehiclesSection = () => {
       name: "Bus",
       description: "Ideal para grupos grandes",
       capacity: 40,
-      pricePerKm: 1.5,
+      pricePerKm: 1.69,
       embedSrc: "https://sketchfab.com/models/8361228fca134c7d9890ded9232cc03f/embed"
     }
   ];

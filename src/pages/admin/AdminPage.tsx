@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Table,
@@ -16,77 +16,50 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Tabs, 
   TabsContent, 
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { CalendarRange, Search, MapPin, User, Bus, Clock } from "lucide-react";
+import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
-// Simulated booking data
-const mockBookings = [
-  {
-    id: '1',
-    user: {
-      name: 'María García',
-      email: 'maria@ejemplo.com',
-      phone: '+34 600 123 456'
-    },
-    origin: 'Madrid, España',
-    destination: 'Toledo, España',
-    vehicleType: 'furgoneta',
-    passengerCount: 12,
-    departureDate: '2024-06-15',
-    departureTime: '09:00',
-    returnDate: '2024-06-15',
-    returnTime: '18:00',
-    status: 'confirmada',
-    cost: 120.50,
-    distance: 73.4
-  },
-  {
-    id: '2',
-    user: {
-      name: 'Carlos Rodríguez',
-      email: 'carlos@ejemplo.com',
-      phone: '+34 600 789 012'
-    },
-    origin: 'Barcelona, España',
-    destination: 'Girona, España',
-    vehicleType: 'microbus',
-    passengerCount: 24,
-    departureDate: '2024-06-20',
-    departureTime: '10:30',
-    returnDate: null,
-    returnTime: null,
-    status: 'pendiente',
-    cost: 185.75,
-    distance: 98.6
-  },
-  {
-    id: '3',
-    user: {
-      name: 'Laura Martínez',
-      email: 'laura@ejemplo.com',
-      phone: '+34 600 345 678'
-    },
-    origin: 'Sevilla, España',
-    destination: 'Córdoba, España',
-    vehicleType: 'bus',
-    passengerCount: 36,
-    departureDate: '2024-06-25',
-    departureTime: '08:15',
-    returnDate: '2024-06-27',
-    returnTime: '19:00',
-    status: 'confirmada',
-    cost: 320.30,
-    distance: 140.2
-  }
-];
+// Booking interface
+interface BookingUser {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+interface Booking {
+  id: string;
+  userData: BookingUser;
+  origin: string;
+  destination: string;
+  vehicleType: string;
+  passengerCount?: number;
+  departureDate: string | Date;
+  departureTime: string;
+  returnDate: string | Date | null;
+  returnTime: string | null;
+  status: 'pendiente' | 'designada' | 'negada' | 'realizada';
+  cost: number | string;
+  distance: number;
+  duration?: string;
+  createdAt: string;
+}
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -94,6 +67,21 @@ const AdminPage: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  // Load bookings from localStorage
+  useEffect(() => {
+    if (isAuthenticated) {
+      const storedBookings = localStorage.getItem('bookings');
+      if (storedBookings) {
+        try {
+          setBookings(JSON.parse(storedBookings));
+        } catch (e) {
+          console.error('Error parsing bookings', e);
+        }
+      }
+    }
+  }, [isAuthenticated]);
 
   // In a real app, this would be connected to your authentication system
   const handleLogin = (e: React.FormEvent) => {
@@ -101,17 +89,55 @@ const AdminPage: React.FC = () => {
     if (username === 'admin' && password === 'admin123') {
       setIsAuthenticated(true);
     } else {
-      alert('Credenciales incorrectas');
+      toast.error('Credenciales incorrectas');
     }
   };
   
   // Filter bookings based on search term
-  const filteredBookings = mockBookings.filter(booking => 
-    booking.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredBookings = bookings.filter(booking => 
+    booking.userData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    booking.userData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.destination.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Update booking status
+  const updateBookingStatus = (id: string, newStatus: 'pendiente' | 'designada' | 'negada' | 'realizada') => {
+    const updatedBookings = bookings.map(booking => 
+      booking.id === id ? { ...booking, status: newStatus } : booking
+    );
+    
+    setBookings(updatedBookings);
+    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+    
+    toast.success(`Estado de reserva actualizado a: ${newStatus}`);
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'designada':
+        return 'bg-blue-100 text-blue-800';
+      case 'negada':
+        return 'bg-red-100 text-red-800';
+      case 'realizada':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'designada':
+        return <AlertCircle className="h-3 w-3 mr-1" />;
+      case 'negada':
+        return <XCircle className="h-3 w-3 mr-1" />;
+      case 'realizada':
+        return <CheckCircle className="h-3 w-3 mr-1" />;
+      default:
+        return <Clock className="h-3 w-3 mr-1" />;
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -214,8 +240,8 @@ const AdminPage: React.FC = () => {
                         <TableRow key={booking.id}>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{booking.user.name}</span>
-                              <span className="text-sm text-gray-500">{booking.user.phone}</span>
+                              <span className="font-medium">{booking.userData.name}</span>
+                              <span className="text-sm text-gray-500">{booking.userData.phone}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -226,6 +252,11 @@ const AdminPage: React.FC = () => {
                               <span className="flex items-center">
                                 <MapPin className="h-3 w-3 mr-1 text-gray-500" fill="currentColor" /> {booking.destination}
                               </span>
+                              {booking.duration && (
+                                <span className="text-xs text-gray-500 mt-1">
+                                  <Clock className="h-3 w-3 inline mr-1" /> {booking.duration}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -237,7 +268,10 @@ const AdminPage: React.FC = () => {
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="flex items-center">
-                                <CalendarRange className="h-3 w-3 mr-1 text-gray-500" /> {booking.departureDate}
+                                <CalendarRange className="h-3 w-3 mr-1 text-gray-500" /> 
+                                {booking.departureDate instanceof Date 
+                                  ? booking.departureDate.toISOString().split('T')[0]
+                                  : booking.departureDate}
                               </span>
                               <span className="flex items-center">
                                 <Clock className="h-3 w-3 mr-1 text-gray-500" /> {booking.departureTime}
@@ -245,15 +279,31 @@ const AdminPage: React.FC = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              booking.status === 'confirmada' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {booking.status}
+                            <span className={`px-2 py-1 rounded-full text-xs flex items-center w-fit ${getStatusBadgeClass(booking.status)}`}>
+                              {getStatusIcon(booking.status)} {booking.status}
                             </span>
                           </TableCell>
-                          <TableCell className="font-medium">${booking.cost.toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">
+                            ${typeof booking.cost === 'number' ? booking.cost.toFixed(2) : booking.cost}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="sm">Ver detalles</Button>
+                            <Select 
+                              defaultValue={booking.status}
+                              onValueChange={(value) => updateBookingStatus(
+                                booking.id, 
+                                value as 'pendiente' | 'designada' | 'negada' | 'realizada'
+                              )}
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue placeholder="Cambiar estado" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pendiente">Pendiente</SelectItem>
+                                <SelectItem value="designada">Designada</SelectItem>
+                                <SelectItem value="negada">Negada</SelectItem>
+                                <SelectItem value="realizada">Realizada</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </TableCell>
                         </TableRow>
                       ))}
