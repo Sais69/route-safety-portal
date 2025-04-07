@@ -1,5 +1,4 @@
 
-
 // Google Maps API key
 export const GOOGLE_MAPS_API_KEY = "AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s1s5Hvg";
 
@@ -10,19 +9,33 @@ export const isGoogleMapsLoaded = (): boolean => {
          window.google.maps !== undefined;
 };
 
-// Load Google Maps API script
+// Load Google Maps API script with error handling
 export const loadGoogleMapsScript = () => {
   if (isGoogleMapsLoaded()) {
     return Promise.resolve();
   }
 
   return new Promise<void>((resolve, reject) => {
+    // Remove any existing Google Maps scripts to avoid conflicts
+    const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+    existingScripts.forEach(script => script.remove());
+    
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+    
+    // Define the callback function that Google Maps will call when loaded
+    window.initMap = () => {
+      console.log("Google Maps API loaded successfully");
+      resolve();
+    };
+    
+    script.onerror = (error) => {
+      console.error("Failed to load Google Maps API:", error);
+      reject(new Error('Failed to load Google Maps API'));
+    };
+    
     document.head.appendChild(script);
   });
 };
@@ -66,4 +79,3 @@ export const formatTime = (date: Date): string => {
 export const getDefaultCoordinates = () => {
   return { lat: -0.1807, lng: -78.4678 }; // Quito, Ecuador
 };
-

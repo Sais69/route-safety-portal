@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
-import { calculateCost } from '@/services/mapService';
+import React, { useState, useCallback, useEffect } from 'react';
+import { calculateCost, loadGoogleMapsScript, isGoogleMapsLoaded } from '@/services/mapService';
 import BookingHeader from './BookingHeader';
 import MapSection from './MapSection';
 import BookingForm from './BookingForm';
+import { toast } from 'sonner';
 
 // Use direct import for Google Maps types
 // The .d.ts file provides types without needing an import
@@ -25,6 +26,7 @@ const BookingPage: React.FC = () => {
   const [isEditingMarkers, setIsEditingMarkers] = useState(false);
   const [intermediateStops, setIntermediateStops] = useState<Stop[]>([]);
   const [duration, setDuration] = useState<string>('');
+  const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
 
   // Form related states
   const [vehicleType, setVehicleType] = useState('furgoneta');
@@ -34,6 +36,24 @@ const BookingPage: React.FC = () => {
   const [returnDate, setReturnDate] = useState<Date | undefined>(new Date());
   const [returnTime, setReturnTime] = useState('18:00');
   const [totalCost, setTotalCost] = useState('0');
+
+  // Load Google Maps when the component mounts
+  useEffect(() => {
+    const loadMap = async () => {
+      try {
+        if (!isGoogleMapsLoaded()) {
+          await loadGoogleMapsScript();
+        }
+        setIsMapLoaded(true);
+        console.log('Google Maps API loaded successfully');
+      } catch (error) {
+        console.error('Error loading Google Maps:', error);
+        toast.error('Error al cargar Google Maps. Por favor, recargue la página.');
+      }
+    };
+    
+    loadMap();
+  }, []);
 
   // Calculate route using Google Directions API with directionsRenderer
   const calculateRoute = useCallback(() => {
@@ -73,6 +93,7 @@ const BookingPage: React.FC = () => {
           updateCost(distance);
         } else {
           console.error('Directions request failed with status: ', status);
+          toast.error('Error al calcular la ruta. Por favor, inténtelo de nuevo.');
         }
       }
     );
@@ -171,24 +192,33 @@ const BookingPage: React.FC = () => {
               </div>
             </div>
             
-            <MapSection 
-              origin={origin}
-              destination={destination}
-              setOrigin={setOrigin}
-              setDestination={setDestination}
-              originPlace={originPlace}
-              destinationPlace={destinationPlace}
-              setOriginPlace={setOriginPlace}
-              setDestinationPlace={setDestinationPlace}
-              intermediateStops={intermediateStops}
-              setIntermediateStops={setIntermediateStops}
-              distance={distance}
-              setDistance={setDistance}
-              isEditingMarkers={isEditingMarkers}
-              setIsEditingMarkers={setIsEditingMarkers}
-              calculateRoute={calculateRoute}
-              duration={duration}
-            />
+            {!isMapLoaded ? (
+              <div className="flex items-center justify-center h-[400px] bg-white rounded-lg shadow-md">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Cargando mapa...</p>
+                </div>
+              </div>
+            ) : (
+              <MapSection 
+                origin={origin}
+                destination={destination}
+                setOrigin={setOrigin}
+                setDestination={setDestination}
+                originPlace={originPlace}
+                destinationPlace={destinationPlace}
+                setOriginPlace={setOriginPlace}
+                setDestinationPlace={setDestinationPlace}
+                intermediateStops={intermediateStops}
+                setIntermediateStops={setIntermediateStops}
+                distance={distance}
+                setDistance={setDistance}
+                isEditingMarkers={isEditingMarkers}
+                setIsEditingMarkers={setIsEditingMarkers}
+                calculateRoute={calculateRoute}
+                duration={duration}
+              />
+            )}
           </div>
           
           {/* Booking form section */}

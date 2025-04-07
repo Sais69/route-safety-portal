@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Clock, MapPin } from 'lucide-react';
@@ -245,21 +244,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <RadioGroupItem value="furgoneta" id="furgoneta" />
                 <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
                   <div>Furgoneta</div>
-                  <div className="text-sm text-gray-500">17 pasajeros - $0.89/km</div>
+                  <div className="text-sm text-gray-500">17 pasajeros</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="microbus" id="microbus" />
                 <Label htmlFor="microbus" className="flex-1 cursor-pointer">
                   <div>Microbús</div>
-                  <div className="text-sm text-gray-500">28 pasajeros - $1.29/km</div>
+                  <div className="text-sm text-gray-500">28 pasajeros</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
                 <RadioGroupItem value="bus" id="bus" />
                 <Label htmlFor="bus" className="flex-1 cursor-pointer">
                   <div>Bus</div>
-                  <div className="text-sm text-gray-500">40 pasajeros - $1.69/km</div>
+                  <div className="text-sm text-gray-500">40 pasajeros</div>
                 </Label>
               </div>
             </RadioGroup>
@@ -282,7 +281,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             {roundTrip && (
               <div className="flex justify-between items-center text-sm text-gray-500">
                 <span>Ida y vuelta:</span>
-                <span>x2</span>
+                <span>Incluido en el precio</span>
               </div>
             )}
             <div className="flex justify-between items-center font-medium text-lg">
