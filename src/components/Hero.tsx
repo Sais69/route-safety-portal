@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ShieldCheck, Bus, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
+  const { user } = useAuth();
+
   return (
     <div className="relative pt-24 pb-20 overflow-hidden">
       {/* Background grid lines */}
@@ -57,7 +60,7 @@ const Hero = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
-              <Link to="/booking">
+              <Link to={user ? "/booking" : "/login"}>
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-6 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_20px_rgba(59,130,246,0.7)] transition-all">
                   Reservar Ahora
                 </Button>

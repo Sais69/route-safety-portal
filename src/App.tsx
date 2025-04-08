@@ -13,22 +13,57 @@ import MyBookings from "./pages/MyBookings";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
 import ThreeDMarqueeDemoSecond from "./components/3d-marquee-demo-2";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient();
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // We now use local storage as a fallback, but primarily rely on the AuthContext
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const { user } = useAuth();
   
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
   
   return <>{children}</>;
 };
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route 
+        path="/booking" 
+        element={
+          <ProtectedRoute>
+            <Booking />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/my-bookings" 
+        element={
+          <ProtectedRoute>
+            <MyBookings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute>
+            <AdminPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 function App() {
   return (
@@ -38,23 +73,7 @@ function App() {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/booking" element={<Booking />} />
-              <Route 
-                path="/my-bookings" 
-                element={
-                  <ProtectedRoute>
-                    <MyBookings />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppRoutes />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

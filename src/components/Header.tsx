@@ -42,9 +42,11 @@ const Header = () => {
           <a href="#safety" className="text-gray-300 hover:text-blue-400 transition-colors">
             Seguridad
           </a>
-          <Link to="/my-bookings" className="text-gray-300 hover:text-blue-400 transition-colors">
-            Mis Reservas
-          </Link>
+          {user && (
+            <Link to="/my-bookings" className="text-gray-300 hover:text-blue-400 transition-colors">
+              Mis Reservas
+            </Link>
+          )}
           <a href="#about" className="text-gray-300 hover:text-blue-400 transition-colors">
             Nosotros
           </a>
@@ -110,13 +112,15 @@ const Header = () => {
             >
               Seguridad
             </a>
-            <Link 
-              to="/my-bookings" 
-              className="text-gray-300 hover:text-blue-400 transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Mis Reservas
-            </Link>
+            {user && (
+              <Link 
+                to="/my-bookings" 
+                className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Mis Reservas
+              </Link>
+            )}
             <a 
               href="#about" 
               className="text-gray-300 hover:text-blue-400 transition-colors py-2"

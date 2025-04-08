@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ThreeDMarquee } from "@/components/ui/3d-marquee";
 import { ChevronRight, Map, Shield, Clock } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Imágenes para el fondo 3D
 const images = [
@@ -24,6 +24,7 @@ const images = [
 
 const Index = () => {
   const observerRef = useRef(null);
+  const { user } = useAuth();
 
   // Setup intersection observer for reveal-on-scroll animations
   useEffect(() => {
@@ -113,16 +114,18 @@ const Index = () => {
                 y disfrutar de viajes seguros con monitoreo GPS en tiempo real.
               </p>
               <div className="flex flex-wrap justify-center gap-4 reveal-on-scroll" style={{transitionDelay: '200ms'}}>
-                <Link to="/register">
+                <Link to={user ? "/booking" : "/register"}>
                   <Button size="lg" className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-3 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_20px_rgba(59,130,246,0.7)] transition-all">
-                    Registrarse
+                    {user ? "Reservar Ahora" : "Registrarse"}
                   </Button>
                 </Link>
-                <Link to="/login">
-                  <Button size="lg" variant="outline" className="px-8 py-3 rounded-full border-2 border-blue-500/30 text-blue-400 hover:border-blue-400 hover:bg-blue-500/10 transition-all">
-                    Iniciar Sesión
-                  </Button>
-                </Link>
+                {!user && (
+                  <Link to="/login">
+                    <Button size="lg" variant="outline" className="px-8 py-3 rounded-full border-2 border-blue-500/30 text-blue-400 hover:border-blue-400 hover:bg-blue-500/10 transition-all">
+                      Iniciar Sesión
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </div>

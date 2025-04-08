@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, ArrowRight, RotateCw, CalendarRange } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
@@ -76,6 +76,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
     phone: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [returnDuration, setReturnDuration] = useState<string>("");
+  const [vehiclePrices, setVehiclePrices] = useState({
+    furgoneta: 0.89,
+    microbus: 1.29,
+    bus: 1.69
+  });
+  const [calculatedCost, setCalculatedCost] = useState(totalCost);
 
   // Get user data from Supabase auth
   useEffect(() => {
@@ -100,6 +107,31 @@ const BookingForm: React.FC<BookingFormProps> = ({
       }
     }
   }, [user]);
+
+  // Set default vehicle type to furgoneta if not set
+  useEffect(() => {
+    if (!vehicleType) {
+      setVehicleType("furgoneta");
+    }
+  }, [vehicleType, setVehicleType]);
+
+  // Calculate return duration based on current duration
+  useEffect(() => {
+    if (duration) {
+      // Simple calculation, assuming return would take the same time
+      setReturnDuration(duration);
+    }
+  }, [duration]);
+
+  // Recalculate price when vehicle type changes
+  useEffect(() => {
+    if (distance > 0) {
+      const pricePerKm = vehiclePrices[vehicleType as keyof typeof vehiclePrices] || vehiclePrices.furgoneta;
+      const baseCost = Math.round(distance * pricePerKm * 100) / 100;
+      const finalCost = roundTrip ? baseCost * 1.8 : baseCost; // Round trip gets a 10% discount on return route
+      setCalculatedCost(finalCost.toFixed(2));
+    }
+  }, [distance, vehicleType, roundTrip, vehiclePrices]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +184,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         round_trip: roundTrip,
         distance: parseFloat(distance.toFixed(2)),
         duration: duration,
-        cost: parseFloat(totalCost),
+        cost: parseFloat(calculatedCost),
         status: 'pendiente'
       };
       
@@ -193,10 +225,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
       <CardHeader>
-        <CardTitle>Detalles de la reserva</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Detalles de la reserva</CardTitle>
+        <CardDescription className="text-gray-400">
           Complete la información necesaria para su viaje
         </CardDescription>
       </CardHeader>
@@ -204,10 +236,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* User information */}
           <div className="space-y-4">
-            <h3 className="font-medium">Información personal</h3>
+            <h3 className="font-medium text-white">Información personal</h3>
             
             <div className="space-y-2">
-              <Label htmlFor="name">Nombre</Label>
+              <Label htmlFor="name" className="text-gray-300">Nombre</Label>
               <Input 
                 id="name" 
                 value={userData.name} 
@@ -218,7 +250,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-300">Email</Label>
               <Input 
                 id="email" 
                 type="email" 
@@ -230,7 +262,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="phone" className="flex items-center">
+              <Label htmlFor="phone" className="flex items-center text-gray-300">
                 Teléfono <span className="text-red-500 ml-1">*</span>
               </Label>
               <Input 
@@ -246,11 +278,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </div>
           </div>
           
-          <Separator />
+          <Separator className="bg-blue-500/20" />
           
           {/* Route summary */}
           <div className="space-y-3">
-            <h3 className="font-medium">Resumen de la ruta</h3>
+            <h3 className="font-medium text-white">Resumen de la ruta</h3>
             <div className="space-y-2 bg-slate-800/70 p-3 rounded-md border border-blue-500/20">
               <div className="flex items-start space-x-2">
                 <MapPin className="h-5 w-5 text-blue-400 mt-0.5" />
@@ -276,12 +308,53 @@ const BookingForm: React.FC<BookingFormProps> = ({
               )}
             </div>
           </div>
+
+          <Separator className="bg-blue-500/20" />
           
-          <Separator />
+          {/* Trip times */}
+          <div className="space-y-3">
+            <h3 className="font-medium text-white">Tiempos de viaje</h3>
+            
+            <div className="bg-slate-800/70 p-3 rounded-md border border-blue-500/20 space-y-3">
+              <div>
+                <div className="flex items-center mb-1">
+                  <CalendarRange className="h-4 w-4 mr-2 text-blue-400" />
+                  <p className="text-sm text-blue-400">Viaje de ida</p>
+                </div>
+                <div className="flex items-center ml-6 text-white">
+                  <p>{departureDate?.toLocaleDateString() || "Fecha no seleccionada"} - {departureTime || "Hora no seleccionada"}</p>
+                </div>
+                {duration && (
+                  <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
+                    <Clock className="h-4 w-4 mr-1" /> Duración estimada: {duration}
+                  </div>
+                )}
+              </div>
+              
+              {roundTrip && (
+                <div>
+                  <div className="flex items-center mb-1">
+                    <RotateCw className="h-4 w-4 mr-2 text-blue-400" />
+                    <p className="text-sm text-blue-400">Viaje de regreso</p>
+                  </div>
+                  <div className="flex items-center ml-6 text-white">
+                    <p>{returnDate?.toLocaleDateString() || "Fecha no seleccionada"} - {returnTime || "Hora no seleccionada"}</p>
+                  </div>
+                  {returnDuration && (
+                    <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
+                      <Clock className="h-4 w-4 mr-1" /> Duración estimada: {returnDuration}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <Separator className="bg-blue-500/20" />
           
           {/* Vehicle selection */}
           <div className="space-y-3">
-            <Label>Tipo de vehículo</Label>
+            <Label className="text-white">Tipo de vehículo</Label>
             <RadioGroup 
               value={vehicleType} 
               onValueChange={setVehicleType} 
@@ -289,51 +362,77 @@ const BookingForm: React.FC<BookingFormProps> = ({
             >
               <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="furgoneta" id="furgoneta" />
-                <Label htmlFor="furgoneta" className="flex-1 cursor-pointer text-white">
-                  <div>Furgoneta</div>
-                  <div className="text-sm text-gray-400">17 pasajeros</div>
+                <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white">Furgoneta</div>
+                      <div className="text-sm text-gray-400">17 pasajeros</div>
+                    </div>
+                    <div className="text-blue-400 font-medium">${vehiclePrices.furgoneta}/km</div>
+                  </div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="microbus" id="microbus" />
-                <Label htmlFor="microbus" className="flex-1 cursor-pointer text-white">
-                  <div>Microbús</div>
-                  <div className="text-sm text-gray-400">28 pasajeros</div>
+                <Label htmlFor="microbus" className="flex-1 cursor-pointer">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white">Microbús</div>
+                      <div className="text-sm text-gray-400">28 pasajeros</div>
+                    </div>
+                    <div className="text-blue-400 font-medium">${vehiclePrices.microbus}/km</div>
+                  </div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="bus" id="bus" />
-                <Label htmlFor="bus" className="flex-1 cursor-pointer text-white">
-                  <div>Bus</div>
-                  <div className="text-sm text-gray-400">40 pasajeros</div>
+                <Label htmlFor="bus" className="flex-1 cursor-pointer">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-white">Bus</div>
+                      <div className="text-sm text-gray-400">40 pasajeros</div>
+                    </div>
+                    <div className="text-blue-400 font-medium">${vehiclePrices.bus}/km</div>
+                  </div>
                 </Label>
               </div>
             </RadioGroup>
           </div>
           
-          <Separator />
+          <Separator className="bg-blue-500/20" />
           
           {/* Cost summary */}
-          <div className="space-y-4">
+          <div className="space-y-4 bg-slate-800/70 p-4 rounded-lg border border-blue-500/20">
+            <h3 className="font-medium text-white mb-3">Resumen de costos</h3>
             <div className="flex justify-between items-center text-white">
               <span>Distancia:</span>
               <span>{distance.toFixed(1)} km</span>
             </div>
             <div className="flex justify-between items-center text-white">
-              <span className="flex items-center">
-                <Clock className="h-4 w-4 mr-2" /> Tiempo estimado:
-              </span>
-              <span>{duration || "Calculando..."}</span>
+              <span>Tarifa por km ({vehicleType}):</span>
+              <span>${vehiclePrices[vehicleType as keyof typeof vehiclePrices] || vehiclePrices.furgoneta}/km</span>
             </div>
             {roundTrip && (
-              <div className="flex justify-between items-center text-sm text-gray-400">
+              <div className="flex justify-between items-center text-white">
                 <span>Ida y vuelta:</span>
-                <span>Incluido en el precio</span>
+                <span>Descuento del 10% en regreso</span>
               </div>
             )}
+            <Separator className="bg-blue-500/20" />
             <div className="flex justify-between items-center font-medium text-lg text-white">
               <span>Costo total:</span>
-              <span>${totalCost}</span>
+              <span>${calculatedCost}</span>
+            </div>
+            
+            <div className="text-xs text-gray-400">
+              <p>El precio incluye:</p>
+              <ul className="list-disc pl-5 mt-1 space-y-1">
+                <li>Conductor profesional</li>
+                <li>Combustible</li>
+                <li>Seguro de viaje</li>
+                <li>Monitoreo GPS en tiempo real</li>
+                {roundTrip && <li>Servicio de ida y vuelta con 10% de descuento en el retorno</li>}
+              </ul>
             </div>
           </div>
           

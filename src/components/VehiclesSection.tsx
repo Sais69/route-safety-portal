@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,13 @@ import {
 } from "@/components/ui/carousel";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const VehiclesSection = () => {
   const [api, setApi] = React.useState<CarouselApi>();
   const [current, setCurrent] = React.useState(0);
   const carouselContentRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   const vehicles = [
     {
@@ -179,7 +180,7 @@ const VehiclesSection = () => {
                           </div>
                         </div>
 
-                        <Link to="/booking" className="w-full">
+                        <Link to={user ? "/booking" : "/login"} className="w-full">
                           <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 shadow-[0_0_10px_rgba(59,130,246,0.5)] border border-blue-500/50 transition-all duration-300">
                             Reservar Ahora
                           </Button>
