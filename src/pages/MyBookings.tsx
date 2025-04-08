@@ -13,9 +13,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, User } from "lucide-react";
+import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingUser {
   name: string;
@@ -25,77 +27,120 @@ interface BookingUser {
 
 interface Booking {
   id: string;
-  userData: BookingUser;
+  userData?: BookingUser;
+  user_id: string;
   origin: string;
   destination: string;
-  vehicleType: string;
+  vehicleType?: string;
+  vehicle_type: string;
   passengerCount?: number;
-  departureDate: string | Date;
-  departureTime: string;
-  returnDate: string | Date | null;
-  returnTime: string | null;
+  passenger_count?: number;
+  departureDate?: string | Date;
+  departure_date: string;
+  departureTime?: string;
+  departure_time: string;
+  returnDate?: string | Date | null;
+  return_date?: string | null;
+  returnTime?: string | null;
+  return_time?: string | null;
   status: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada';
   cost: number | string;
   distance: number;
   duration?: string;
-  createdAt: string;
+  createdAt?: string;
+  created_at: string;
 }
 
 const MyBookings = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalDistance, setTotalDistance] = useState(0);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    // Simular verificación de autenticación
-    // En una implementación real, esto vendría de un contexto de autenticación o del backend
-    const checkAuth = () => {
-      const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-      setIsLoggedIn(isAuthenticated);
-      
-      if (!isAuthenticated) {
-        toast.error("Por favor inicia sesión para ver tus reservas");
-        navigate('/login');
-        return;
-      }
-      
-      fetchBookings();
-    };
-    
-    checkAuth();
-  }, [navigate]);
-
-  const fetchBookings = () => {
-    setIsLoading(true);
-    const storedBookings = localStorage.getItem('bookings');
-    
-    if (storedBookings) {
-      try {
-        // Filtrar solo las reservas del usuario activo (simulado)
-        const parsedBookings = JSON.parse(storedBookings);
-        // En un sistema real, filtrarías por usuario autenticado
-        setBookings(parsedBookings);
-        
-        // Calcular distancia total de los viajes realizados
-        const completedDistance = parsedBookings
-          .filter(booking => booking.status === 'realizada')
-          .reduce((total, booking) => total + booking.distance, 0);
-          
-        setTotalDistance(completedDistance);
-      } catch (e) {
-        console.error('Error parsing bookings', e);
-        toast.error("Error al cargar las reservas");
-      }
+    // Check if user is authenticated
+    if (!user) {
+      toast.error("Por favor inicia sesión para ver tus reservas");
+      navigate('/login', { state: { from: { pathname: '/my-bookings' } } });
+      return;
     }
     
-    setIsLoading(false);
+    fetchBookings();
+  }, [navigate, user]);
+
+  const fetchBookings = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch bookings from Supabase
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Process bookings data
+      if (data) {
+        const processedBookings = data.map((booking: any) => {
+          return {
+            ...booking,
+            // Map fields for backward compatibility
+            vehicleType: booking.vehicle_type,
+            departureDate: booking.departure_date,
+            departureTime: booking.departure_time,
+            returnDate: booking.return_date,
+            returnTime: booking.return_time,
+            createdAt: booking.created_at
+          };
+        });
+        
+        setBookings(processedBookings);
+        
+        // Calculate total distance of completed bookings
+        const completedDistance = processedBookings
+          .filter(booking => booking.status === 'realizada')
+          .reduce((total, booking) => total + Number(booking.distance), 0);
+          
+        setTotalDistance(completedDistance);
+      }
+      
+      // Also check localStorage for backward compatibility
+      const storedBookings = localStorage.getItem('bookings');
+      if (storedBookings) {
+        try {
+          const parsedBookings = JSON.parse(storedBookings);
+          // Merge with any bookings that might be only in localStorage
+          // This is for backwards compatibility
+          // In a production app, we would migrate these to the database
+          setBookings(prev => {
+            const idSet = new Set(prev.map(b => b.id));
+            const newBookings = parsedBookings.filter((b: any) => !idSet.has(b.id));
+            return [...prev, ...newBookings];
+          });
+        } catch (e) {
+          console.error('Error parsing local bookings', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      toast.error("Error al cargar las reservas");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (!isLoggedIn) {
-    return null; // No renderizar nada si no está autenticado (será redirigido)
-  }
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchBookings();
+    setRefreshing(false);
+    toast.success("Reservas actualizadas");
+  };
 
   const pendingBookings = bookings.filter(booking => booking.status === 'pendiente' || booking.status === 'designada');
   const activeBookings = bookings.filter(booking => booking.status === 'en curso');
@@ -127,7 +172,7 @@ const MyBookings = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 text-white">
       <Header />
-      <main className="flex-grow py-8 px-4">
+      <main className="flex-grow py-8 px-4 mt-16">
         <div className="container mx-auto max-w-6xl relative">
           {/* Decorative elements */}
           <div className="absolute top-20 -left-10 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px]" />
@@ -145,9 +190,21 @@ const MyBookings = () => {
                 <h1 className="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">Mis Reservas</h1>
                 <p className="text-gray-400">Gestione sus viajes y vea su historial de reservas</p>
               </div>
-              <div className="mt-4 md:mt-0 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 backdrop-blur-sm text-white px-6 py-3 rounded-lg border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                <p className="text-sm font-medium text-blue-300">Total recorrido</p>
-                <p className="text-2xl font-bold">{totalDistance.toFixed(2)} km</p>
+              <div className="mt-4 md:mt-0 flex items-center gap-4">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh} 
+                  disabled={refreshing || isLoading}
+                  className="flex items-center gap-2 border-blue-500/20 hover:bg-blue-900/20"
+                >
+                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+                  {refreshing ? "Actualizando..." : "Actualizar"}
+                </Button>
+                <div className="bg-gradient-to-r from-blue-500/20 to-indigo-600/20 backdrop-blur-sm text-white px-6 py-3 rounded-lg border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                  <p className="text-sm font-medium text-blue-300">Total recorrido</p>
+                  <p className="text-2xl font-bold">{totalDistance.toFixed(2)} km</p>
+                </div>
               </div>
             </motion.div>
 
@@ -321,15 +378,35 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
     }
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  const destination = booking.destination.split(',')[0];
+  const formattedDate = formatDate(booking.departure_date || (booking.departureDate as string));
+  const departureTime = booking.departure_time || booking.departureTime;
+  const vehicleType = booking.vehicle_type || booking.vehicleType;
+
   return (
     <Card className={`glass-card bg-slate-900/50 overflow-hidden border ${getBorderColor(booking.status)} backdrop-blur-sm hover:bg-slate-800/50 transition-colors`}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-xl text-white">Viaje a {booking.destination.split(',')[0]}</CardTitle>
+            <CardTitle className="text-xl text-white">Viaje a {destination}</CardTitle>
             <CardDescription className="flex items-center mt-1 text-gray-400">
               <CalendarRange size={16} className="mr-1" />
-              {typeof booking.departureDate === 'string' ? booking.departureDate : booking.departureDate.toISOString().split('T')[0]} • {booking.departureTime}
+              {formattedDate} • {departureTime}
             </CardDescription>
           </div>
           <Badge className={`${getStatusBadgeClass(booking.status)} text-xs py-1 px-3 rounded-full border`}>
@@ -358,7 +435,7 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
               <span className="text-sm text-gray-400">Vehículo</span>
               <div className="flex items-center">
                 <Car size={18} className="text-blue-400 mr-1" />
-                <span className="font-medium text-sm capitalize text-gray-300">{booking.vehicleType}</span>
+                <span className="font-medium text-sm capitalize text-gray-300">{vehicleType}</span>
               </div>
             </div>
           </div>

@@ -1,12 +1,15 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import { Bus, MapPin, ShieldCheck, Menu, X } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Bus, Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,6 +18,11 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+  
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300 ${
@@ -44,16 +52,31 @@ const Header = () => {
         
         {/* Desktop Auth Buttons */}
         <div className="hidden md:flex items-center space-x-4">
-          <Link to="/login">
-            <Button variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300">
-              Iniciar Sesión
-            </Button>
-          </Link>
-          <Link to="/register" className="group">
-            <Button className="animated-button bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
-              <span>Registrarse</span>
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <span className="text-gray-300">Hola, {user.user_metadata?.first_name || 'Usuario'}</span>
+              <Button 
+                variant="outline" 
+                className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+                onClick={handleSignOut}
+              >
+                Cerrar Sesión
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="outline" className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300">
+                  Iniciar Sesión
+                </Button>
+              </Link>
+              <Link to="/register" className="group">
+                <Button className="animated-button bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]">
+                  <span>Registrarse</span>
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
         
         {/* Mobile Menu Button */}
@@ -102,16 +125,34 @@ const Header = () => {
               Nosotros
             </a>
             <div className="flex flex-col space-y-2 pt-2 border-t border-blue-900/30">
-              <Link to="/login">
-                <Button variant="outline" className="w-full border-blue-500/50 text-blue-400 hover:bg-blue-500/10">
-                  Iniciar Sesión
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                  Registrarse
-                </Button>
-              </Link>
+              {user ? (
+                <>
+                  <span className="text-gray-300 py-2">Hola, {user.user_metadata?.first_name || 'Usuario'}</span>
+                  <Button 
+                    variant="outline" 
+                    className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+                    onClick={() => {
+                      handleSignOut();
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    Cerrar Sesión
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full border-blue-500/50 text-blue-400 hover:bg-blue-500/10">
+                      Iniciar Sesión
+                    </Button>
+                  </Link>
+                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                      Registrarse
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>

@@ -1,0 +1,149 @@
+
+import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, userData: any) => Promise<void>;
+  signOut: () => Promise<void>;
+  setAuthSession: (session: Session | null) => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        // Store authentication state in localStorage for other components
+        if (currentSession) {
+          localStorage.setItem('isAuthenticated', 'true');
+          localStorage.setItem('userEmail', currentSession.user.email || '');
+
+          // Only fetch additional user data if needed
+          if (event === 'SIGNED_IN') {
+            setTimeout(() => {
+              toast.success("Inicio de sesión exitoso");
+            }, 0);
+          }
+        } else {
+          localStorage.removeItem('isAuthenticated');
+          localStorage.removeItem('userEmail');
+          if (event === 'SIGNED_OUT') {
+            setTimeout(() => {
+              toast.info("Sesión cerrada");
+            }, 0);
+          }
+        }
+      }
+    );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error al iniciar sesión');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signUp = async (email: string, password: string, userData: any) => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: userData
+        }
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('Registro exitoso. Por favor verifique su correo electrónico.');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al registrarse');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error al cerrar sesión');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const setAuthSession = (newSession: Session | null) => {
+    setSession(newSession);
+    setUser(newSession?.user ?? null);
+  };
+
+  return (
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        session, 
+        isLoading,
+        signIn,
+        signUp,
+        signOut,
+        setAuthSession
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

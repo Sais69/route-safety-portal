@@ -1,6 +1,6 @@
 
 // API key para Google Maps
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s5Hvg'; // Clave de API actualizada
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s1s5Hvg'; // Clave de API actualizada
 
 // Declaración global para el callback de Google Maps
 declare global {

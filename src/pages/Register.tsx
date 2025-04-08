@@ -1,27 +1,90 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bus, ArrowLeft, User, Lock, Mail, Phone } from "lucide-react";
+import { Bus, ArrowLeft, User, Lock, Mail, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { signUp, isLoading, user } = useAuth();
+  
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
+  });
+  
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/booking", { replace: true });
+    }
+  }, [user, navigate]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.id]: e.target.value
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate registration - in a real app this would create an account
-    toast.success("Registro exitoso");
+    // Form validation
+    if (Object.values(formData).some(field => !field)) {
+      toast.error("Todos los campos son requeridos");
+      return;
+    }
     
-    // Redirect to booking page after successful registration
-    setTimeout(() => {
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+    
+    try {
+      setFormSubmitting(true);
+      
+      // Prepare user metadata
+      const userData = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone,
+        full_name: `${formData.firstName} ${formData.lastName}`
+      };
+      
+      await signUp(formData.email, formData.password, userData);
+      
+      // Store user data in localStorage for the booking form
+      localStorage.setItem('user', JSON.stringify({
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        phone: formData.phone
+      }));
+      
       navigate("/booking");
-    }, 1000);
+    } catch (error) {
+      // Error is handled in the signUp function
+      console.error("Error en el registro:", error);
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   // Animations
@@ -47,6 +110,18 @@ const Register = () => {
       },
     },
   };
+
+  // If authentication is still loading, show a loading state
+  if (isLoading && !formSubmitting) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 p-4">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
+          <p className="text-white">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 p-4 overflow-hidden">
@@ -106,7 +181,9 @@ const Register = () => {
                       id="firstName" 
                       type="text" 
                       required 
-                      className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                      className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20"
+                      value={formData.firstName}
+                      onChange={handleChange}
                     />
                   </div>
                 </div>
@@ -116,7 +193,9 @@ const Register = () => {
                     id="lastName" 
                     type="text" 
                     required 
-                    className="bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                    className="bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20"
+                    value={formData.lastName}
+                    onChange={handleChange}
                   />
                 </div>
               </motion.div>
@@ -130,7 +209,9 @@ const Register = () => {
                     type="email" 
                     placeholder="ejemplo@correo.com" 
                     required 
-                    className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-400 focus:ring-blue-400/20" 
+                    className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-400 focus:ring-blue-400/20"
+                    value={formData.email}
+                    onChange={handleChange}
                   />
                 </div>
               </motion.div>
@@ -143,7 +224,9 @@ const Register = () => {
                     id="phone" 
                     type="tel" 
                     required 
-                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20"
+                    value={formData.phone}
+                    onChange={handleChange}
                   />
                 </div>
               </motion.div>
@@ -156,7 +239,9 @@ const Register = () => {
                     id="password" 
                     type="password" 
                     required 
-                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20"
+                    value={formData.password}
+                    onChange={handleChange}
                   />
                 </div>
               </motion.div>
@@ -169,7 +254,9 @@ const Register = () => {
                     id="confirmPassword" 
                     type="password" 
                     required 
-                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                    className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
                   />
                 </div>
               </motion.div>
@@ -178,8 +265,16 @@ const Register = () => {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-blue-600/50 transition-all duration-300"
+                  disabled={formSubmitting}
                 >
-                  Registrarse
+                  {formSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Procesando
+                    </>
+                  ) : (
+                    "Registrarse"
+                  )}
                 </Button>
               </motion.div>
             </form>

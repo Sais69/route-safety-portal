@@ -9,7 +9,75 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          cost: number
+          created_at: string
+          departure_date: string
+          departure_time: string
+          destination: string
+          destination_coords: Json | null
+          distance: number
+          duration: string | null
+          id: string
+          intermediate_stops: Json[] | null
+          origin: string
+          origin_coords: Json | null
+          passenger_count: number | null
+          return_date: string | null
+          return_time: string | null
+          round_trip: boolean
+          status: string
+          updated_at: string
+          user_id: string
+          vehicle_type: string
+        }
+        Insert: {
+          cost: number
+          created_at?: string
+          departure_date: string
+          departure_time: string
+          destination: string
+          destination_coords?: Json | null
+          distance: number
+          duration?: string | null
+          id?: string
+          intermediate_stops?: Json[] | null
+          origin: string
+          origin_coords?: Json | null
+          passenger_count?: number | null
+          return_date?: string | null
+          return_time?: string | null
+          round_trip?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+          vehicle_type: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string
+          departure_date?: string
+          departure_time?: string
+          destination?: string
+          destination_coords?: Json | null
+          distance?: number
+          duration?: string | null
+          id?: string
+          intermediate_stops?: Json[] | null
+          origin?: string
+          origin_coords?: Json | null
+          passenger_count?: number | null
+          return_date?: string | null
+          return_time?: string | null
+          round_trip?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

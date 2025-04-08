@@ -1,42 +1,50 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bus, ArrowLeft, User, Lock, Mail, Loader2 } from "lucide-react";
+import { Bus, ArrowLeft, Mail, Lock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn, isLoading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      const from = location.state?.from?.pathname || "/booking";
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, location]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
     // Validate form
     if (!email || !password) {
       toast.error("Todos los campos son requeridos");
-      setIsLoading(false);
       return;
     }
     
-    // Simulate login - in a real app this would verify credentials with backend
-    setTimeout(() => {
-      // Store authentication state in localStorage (this is just a simulation)
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userEmail', email);
-      
-      toast.success("Inicio de sesión exitoso");
-      setIsLoading(false);
-      
-      // Redirect to booking page after successful login
+    try {
+      setFormSubmitting(true);
+      await signIn(email, password);
       navigate("/booking");
-    }, 1000);
+    } catch (error) {
+      // Error is handled in the signIn function
+      console.error("Error en el inicio de sesión:", error);
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   // Animations
@@ -62,6 +70,18 @@ const Login = () => {
       },
     },
   };
+
+  // If authentication is still loading, show a loading state
+  if (isLoading && !formSubmitting) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 p-4">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-10 w-10 text-blue-500 animate-spin mb-4" />
+          <p className="text-white">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800 p-4 overflow-hidden">
@@ -152,9 +172,9 @@ const Login = () => {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-blue-600/50 transition-all duration-300"
-                  disabled={isLoading}
+                  disabled={formSubmitting}
                 >
-                  {isLoading ? (
+                  {formSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Cargando

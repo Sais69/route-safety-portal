@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,22 +13,14 @@ import MyBookings from "./pages/MyBookings";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
 import ThreeDMarqueeDemoSecond from "./components/3d-marquee-demo-2";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Create a client
 const queryClient = new QueryClient();
 
-// AuthContext for global auth state management
-export const AuthContext = React.createContext<{
-  isAuthenticated: boolean;
-  setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
-}>({
-  isAuthenticated: false,
-  setIsAuthenticated: () => {}
-});
-
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = React.useContext(AuthContext);
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -38,29 +30,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  // Check authentication on app load
-  useEffect(() => {
-    const checkAuth = () => {
-      const auth = localStorage.getItem('isAuthenticated') === 'true';
-      setIsAuthenticated(auth);
-    };
-    
-    checkAuth();
-    
-    // Setup listener for auth changes
-    window.addEventListener('storage', checkAuth);
-    return () => {
-      window.removeEventListener('storage', checkAuth);
-    };
-  }, []);
-  
   return (
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
+        <AuthProvider>
+          <TooltipProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -82,8 +56,8 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </AuthContext.Provider>
-        </TooltipProvider>
+          </TooltipProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </React.StrictMode>
   );

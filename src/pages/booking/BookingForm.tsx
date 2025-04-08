@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Clock, MapPin } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BookingFormProps {
   vehicleType: string;
@@ -64,29 +66,45 @@ const BookingForm: React.FC<BookingFormProps> = ({
   intermediateStops,
   duration
 }) => {
-  // User data state - would normally be fetched from authentication context
+  const { user } = useAuth();
   const [userData, setUserData] = useState<UserData>({
-    name: "Usuario Ejemplo",
-    email: "usuario@ejemplo.com",
+    name: "",
+    email: "",
     phone: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Simulating fetching user data from login
+  // Get user data from Supabase auth
   useEffect(() => {
-    // In a real application, this would fetch user data from a context or API
-    // For now, we'll simulate having user data from login
-    const loggedInUser = localStorage.getItem("user");
-    if (loggedInUser) {
-      try {
-        setUserData(JSON.parse(loggedInUser));
-      } catch (e) {
-        console.error("Error parsing user data", e);
+    if (user) {
+      const metadata = user.user_metadata;
+      const fullName = metadata?.full_name || `${metadata?.first_name || ''} ${metadata?.last_name || ''}`.trim();
+      
+      setUserData({
+        name: fullName || "Usuario",
+        email: user.email || "",
+        phone: metadata?.phone || ""
+      });
+    } else {
+      // Fallback to localStorage for backward compatibility
+      const loggedInUser = localStorage.getItem("user");
+      if (loggedInUser) {
+        try {
+          setUserData(JSON.parse(loggedInUser));
+        } catch (e) {
+          console.error("Error parsing user data", e);
+        }
       }
     }
-  }, []);
+  }, [user]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast.error('Debe iniciar sesión para realizar una reserva');
+      return;
+    }
     
     if (!origin || !destination) {
       toast.error('Por favor, seleccione un origen y destino válidos');
@@ -108,42 +126,67 @@ const BookingForm: React.FC<BookingFormProps> = ({
       return;
     }
     
-    // Simulate booking submission
-    toast.success('¡Reserva realizada con éxito!');
-    
-    // Log booking details
-    const bookingData = {
-      userData,
-      origin: originPlace,
-      destination: destinationPlace,
-      intermediateStops,
-      vehicleType,
-      roundTrip,
-      departureDate,
-      departureTime,
-      returnDate: roundTrip ? returnDate : null,
-      returnTime: roundTrip ? returnTime : null,
-      distance,
-      duration,
-      totalCost,
-      status: 'pendiente'
-    };
-    
-    console.log(bookingData);
-    
-    // Store in localStorage for admin panel
-    const existingBookings = localStorage.getItem('bookings');
-    let bookings = existingBookings ? JSON.parse(existingBookings) : [];
-    
-    // Add a unique ID and timestamp to the booking
-    const newBooking = {
-      ...bookingData,
-      id: `booking-${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-    
-    bookings.push(newBooking);
-    localStorage.setItem('bookings', JSON.stringify(bookings));
+    try {
+      setIsSubmitting(true);
+      
+      // Format the booking data for Supabase
+      const bookingData = {
+        user_id: user.id,
+        origin: originPlace,
+        destination: destinationPlace,
+        origin_coords: origin,
+        destination_coords: destination,
+        intermediate_stops: intermediateStops.map(stop => ({ 
+          id: stop.id, 
+          placeName: stop.placeName, 
+          location: stop.location 
+        })),
+        vehicle_type: vehicleType,
+        departure_date: departureDate?.toISOString(),
+        departure_time: departureTime,
+        return_date: roundTrip ? returnDate?.toISOString() : null,
+        return_time: roundTrip ? returnTime : null,
+        round_trip: roundTrip,
+        distance: parseFloat(distance.toFixed(2)),
+        duration: duration,
+        cost: parseFloat(totalCost),
+        status: 'pendiente'
+      };
+      
+      // Insert booking into Supabase
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select('id')
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('¡Reserva realizada con éxito!');
+      
+      // Also save to localStorage for backward compatibility
+      const existingBookings = localStorage.getItem('bookings');
+      let bookings = existingBookings ? JSON.parse(existingBookings) : [];
+      
+      // Add a unique ID and timestamp to the booking
+      const newBooking = {
+        ...bookingData,
+        id: data?.id || `booking-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        userData
+      };
+      
+      bookings.push(newBooking);
+      localStorage.setItem('bookings', JSON.stringify(bookings));
+      
+    } catch (error: any) {
+      console.error('Error al guardar la reserva:', error);
+      toast.error(`Error al realizar la reserva: ${error.message || 'Inténtelo de nuevo más tarde'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -167,7 +210,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 value={userData.name} 
                 onChange={(e) => setUserData({...userData, name: e.target.value})} 
                 readOnly 
-                className="bg-gray-50"
+                className="bg-slate-800/70 text-white border-blue-500/30"
               />
             </div>
             
@@ -179,7 +222,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 value={userData.email} 
                 onChange={(e) => setUserData({...userData, email: e.target.value})} 
                 readOnly 
-                className="bg-gray-50"
+                className="bg-slate-800/70 text-white border-blue-500/30"
               />
             </div>
             
@@ -194,6 +237,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 onChange={(e) => setUserData({...userData, phone: e.target.value})} 
                 required
                 placeholder="Ej: +34 600 000 000"
+                className="bg-slate-800/70 text-white border-blue-500/30"
               />
               <p className="text-xs text-gray-500">Campo obligatorio</p>
             </div>
@@ -204,26 +248,26 @@ const BookingForm: React.FC<BookingFormProps> = ({
           {/* Route summary */}
           <div className="space-y-3">
             <h3 className="font-medium">Resumen de la ruta</h3>
-            <div className="space-y-2 bg-gray-50 p-3 rounded-md">
+            <div className="space-y-2 bg-slate-800/70 p-3 rounded-md border border-blue-500/20">
               <div className="flex items-start space-x-2">
-                <MapPin className="h-5 w-5 text-primary mt-0.5" />
+                <MapPin className="h-5 w-5 text-blue-400 mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-500">Origen</p>
-                  <p className="font-medium">{originPlace || "No seleccionado"}</p>
+                  <p className="text-sm text-gray-400">Origen</p>
+                  <p className="font-medium text-white">{originPlace || "No seleccionado"}</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
-                <MapPin className="h-5 w-5 text-primary mt-0.5" fill="currentColor" />
+                <MapPin className="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" />
                 <div>
-                  <p className="text-sm text-gray-500">Destino</p>
-                  <p className="font-medium">{destinationPlace || "No seleccionado"}</p>
+                  <p className="text-sm text-gray-400">Destino</p>
+                  <p className="font-medium text-white">{destinationPlace || "No seleccionado"}</p>
                 </div>
               </div>
               {intermediateStops.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-sm text-gray-500 mb-1">Paradas intermedias</p>
+                <div className="mt-2 pt-2 border-t border-gray-700">
+                  <p className="text-sm text-gray-400 mb-1">Paradas intermedias</p>
                   {intermediateStops.map(stop => (
-                    <p key={stop.id} className="text-sm">{stop.placeName}</p>
+                    <p key={stop.id} className="text-sm text-white">{stop.placeName}</p>
                   ))}
                 </div>
               )}
@@ -240,25 +284,25 @@ const BookingForm: React.FC<BookingFormProps> = ({
               onValueChange={setVehicleType} 
               className="grid grid-cols-1 gap-3"
             >
-              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="furgoneta" id="furgoneta" />
-                <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
+                <Label htmlFor="furgoneta" className="flex-1 cursor-pointer text-white">
                   <div>Furgoneta</div>
-                  <div className="text-sm text-gray-500">17 pasajeros</div>
+                  <div className="text-sm text-gray-400">17 pasajeros</div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="microbus" id="microbus" />
-                <Label htmlFor="microbus" className="flex-1 cursor-pointer">
+                <Label htmlFor="microbus" className="flex-1 cursor-pointer text-white">
                   <div>Microbús</div>
-                  <div className="text-sm text-gray-500">28 pasajeros</div>
+                  <div className="text-sm text-gray-400">28 pasajeros</div>
                 </Label>
               </div>
-              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center space-x-2 border border-blue-500/20 rounded-md p-3 hover:bg-slate-800/50 cursor-pointer">
                 <RadioGroupItem value="bus" id="bus" />
-                <Label htmlFor="bus" className="flex-1 cursor-pointer">
+                <Label htmlFor="bus" className="flex-1 cursor-pointer text-white">
                   <div>Bus</div>
-                  <div className="text-sm text-gray-500">40 pasajeros</div>
+                  <div className="text-sm text-gray-400">40 pasajeros</div>
                 </Label>
               </div>
             </RadioGroup>
@@ -268,30 +312,34 @@ const BookingForm: React.FC<BookingFormProps> = ({
           
           {/* Cost summary */}
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center text-white">
               <span>Distancia:</span>
               <span>{distance.toFixed(1)} km</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center text-white">
               <span className="flex items-center">
                 <Clock className="h-4 w-4 mr-2" /> Tiempo estimado:
               </span>
               <span>{duration || "Calculando..."}</span>
             </div>
             {roundTrip && (
-              <div className="flex justify-between items-center text-sm text-gray-500">
+              <div className="flex justify-between items-center text-sm text-gray-400">
                 <span>Ida y vuelta:</span>
                 <span>Incluido en el precio</span>
               </div>
             )}
-            <div className="flex justify-between items-center font-medium text-lg">
+            <div className="flex justify-between items-center font-medium text-lg text-white">
               <span>Costo total:</span>
               <span>${totalCost}</span>
             </div>
           </div>
           
-          <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90">
-            Reservar Ahora
+          <Button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-blue-600/50"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Procesando...' : 'Reservar Ahora'}
           </Button>
         </form>
       </CardContent>
