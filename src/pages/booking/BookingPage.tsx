@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 
 // Use direct import for Google Maps types
 // The .d.ts file provides types without needing an import
-// Removing the import that was causing the error
 
 interface Stop {
   id: string;
@@ -27,6 +26,7 @@ const BookingPage: React.FC = () => {
   const [intermediateStops, setIntermediateStops] = useState<Stop[]>([]);
   const [duration, setDuration] = useState<string>('');
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
+  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
   // Form related states
   const [vehicleType, setVehicleType] = useState('furgoneta');
@@ -48,11 +48,24 @@ const BookingPage: React.FC = () => {
         console.log('Google Maps API loaded successfully');
       } catch (error) {
         console.error('Error loading Google Maps:', error);
+        setMapLoadError('Error al cargar Google Maps. Por favor, recargue la página.');
         toast.error('Error al cargar Google Maps. Por favor, recargue la página.');
       }
     };
     
     loadMap();
+
+    // Add an interval to check if the map is failing to load after 5 seconds
+    const checkMapLoadingTimeout = setTimeout(() => {
+      if (!isGoogleMapsLoaded() && !isMapLoaded) {
+        console.log('Retrying Google Maps load...');
+        loadMap();
+      }
+    }, 5000);
+
+    return () => {
+      clearTimeout(checkMapLoadingTimeout);
+    };
   }, []);
 
   // Calculate route using Google Directions API with directionsRenderer
@@ -111,37 +124,37 @@ const BookingPage: React.FC = () => {
   }, [vehicleType, distance, roundTrip]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-background to-slate-900">
       {/* Navigation header */}
       <BookingHeader />
       
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Reservar un viaje</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center text-white neon-text">Reservar un viaje</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Map and route section */}
           <div className="lg:col-span-2 space-y-6">
             {/* Date and Time Selection Moved to Top */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-4">
-              <h2 className="text-xl font-semibold mb-4">Fecha y Hora del Viaje</h2>
+            <div className="glass-card bg-slate-900/50 p-6 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] mb-4">
+              <h2 className="text-xl font-semibold mb-4 text-white">Fecha y Hora del Viaje</h2>
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <div className="font-medium text-sm">Ida</div>
+                  <div className="font-medium text-sm text-blue-400">Ida</div>
                   <div className="flex space-x-2">
                     <div className="flex-1">
-                      <label className="text-sm text-gray-500">Fecha</label>
+                      <label className="text-sm text-gray-400">Fecha</label>
                       <input 
                         type="date"
-                        className="w-full border rounded p-2"
+                        className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         value={departureDate ? departureDate.toISOString().split('T')[0] : ''}
                         onChange={(e) => setDepartureDate(e.target.value ? new Date(e.target.value) : undefined)}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-sm text-gray-500">Hora</label>
+                      <label className="text-sm text-gray-400">Hora</label>
                       <input 
                         type="time"
-                        className="w-full border rounded p-2"
+                        className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         value={departureTime}
                         onChange={(e) => setDepartureTime(e.target.value)}
                       />
@@ -150,23 +163,23 @@ const BookingPage: React.FC = () => {
                 </div>
                 
                 {roundTrip && (
-                  <div className="space-y-2">
-                    <div className="font-medium text-sm">Vuelta</div>
+                  <div className="space-y-2 fade-in">
+                    <div className="font-medium text-sm text-blue-400">Vuelta</div>
                     <div className="flex space-x-2">
                       <div className="flex-1">
-                        <label className="text-sm text-gray-500">Fecha</label>
+                        <label className="text-sm text-gray-400">Fecha</label>
                         <input 
                           type="date"
-                          className="w-full border rounded p-2"
+                          className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           value={returnDate ? returnDate.toISOString().split('T')[0] : ''}
                           onChange={(e) => setReturnDate(e.target.value ? new Date(e.target.value) : undefined)}
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="text-sm text-gray-500">Hora</label>
+                        <label className="text-sm text-gray-400">Hora</label>
                         <input 
                           type="time"
-                          className="w-full border rounded p-2"
+                          className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           value={returnTime}
                           onChange={(e) => setReturnTime(e.target.value)}
                         />
@@ -181,11 +194,11 @@ const BookingPage: React.FC = () => {
                   <input 
                     id="roundtrip-checkbox" 
                     type="checkbox" 
-                    className="h-4 w-4 text-primary border-gray-300 rounded"
+                    className="h-4 w-4 text-blue-500 border-blue-500/30 rounded focus:ring-blue-500"
                     checked={roundTrip}
                     onChange={(e) => setRoundTrip(e.target.checked)}
                   />
-                  <label htmlFor="roundtrip-checkbox" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="roundtrip-checkbox" className="ml-2 block text-sm text-gray-300">
                     Ida y Vuelta
                   </label>
                 </div>
@@ -193,10 +206,10 @@ const BookingPage: React.FC = () => {
             </div>
             
             {!isMapLoaded ? (
-              <div className="flex items-center justify-center h-[400px] bg-white rounded-lg shadow-md">
+              <div className="flex items-center justify-center h-[400px] glass-card bg-slate-900/50 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p>Cargando mapa...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-white">{mapLoadError || 'Cargando mapa...'}</p>
                 </div>
               </div>
             ) : (

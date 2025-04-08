@@ -65,24 +65,114 @@ const MapSection: React.FC<MapSectionProps> = ({
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const newStopInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [mapInitError, setMapInitError] = useState<string | null>(null);
 
   // Initialize map and directions service
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
-    const newMap = new window.google.maps.Map(mapRef.current, {
-      center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
-      zoom: 12,
-      mapId: 'YOUR_MAP_ID',
-    });
+    try {
+      const mapOptions = {
+        center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
+        zoom: 12,
+        mapId: 'YOUR_MAP_ID',
+        styles: [
+          {
+            "featureType": "all",
+            "elementType": "labels.text.fill",
+            "stylers": [{"color": "#ffffff"}]
+          },
+          {
+            "featureType": "all",
+            "elementType": "labels.text.stroke",
+            "stylers": [{"color": "#000000"}, {"lightness": 13}]
+          },
+          {
+            "featureType": "administrative",
+            "elementType": "geometry.fill",
+            "stylers": [{"color": "#000000"}]
+          },
+          {
+            "featureType": "administrative",
+            "elementType": "geometry.stroke",
+            "stylers": [{"color": "#144b53"}, {"lightness": 14}, {"weight": 1.4}]
+          },
+          {
+            "featureType": "landscape",
+            "elementType": "all",
+            "stylers": [{"color": "#08304b"}]
+          },
+          {
+            "featureType": "poi",
+            "elementType": "geometry",
+            "stylers": [{"color": "#0c4152"}, {"lightness": 5}]
+          },
+          {
+            "featureType": "road.highway",
+            "elementType": "geometry.fill",
+            "stylers": [{"color": "#000000"}]
+          },
+          {
+            "featureType": "road.highway",
+            "elementType": "geometry.stroke",
+            "stylers": [{"color": "#0b434f"}, {"lightness": 25}]
+          },
+          {
+            "featureType": "road.arterial",
+            "elementType": "geometry.fill",
+            "stylers": [{"color": "#000000"}]
+          },
+          {
+            "featureType": "road.arterial",
+            "elementType": "geometry.stroke",
+            "stylers": [{"color": "#0b3d51"}, {"lightness": 16}]
+          },
+          {
+            "featureType": "road.local",
+            "elementType": "geometry",
+            "stylers": [{"color": "#000000"}]
+          },
+          {
+            "featureType": "transit",
+            "elementType": "all",
+            "stylers": [{"color": "#146474"}]
+          },
+          {
+            "featureType": "water",
+            "elementType": "all",
+            "stylers": [{"color": "#021019"}]
+          }
+        ]
+      };
 
-    setMap(newMap);
+      const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
+      setMap(newMap);
 
-    const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({ map: newMap });
-    setDirectionsRenderer(newDirectionsRenderer);
+      const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({
+        map: newMap,
+        suppressMarkers: false,
+        polylineOptions: {
+          strokeColor: '#3b82f6',
+          strokeWeight: 5,
+          strokeOpacity: 0.8
+        }
+      });
+      
+      setDirectionsRenderer(newDirectionsRenderer);
+    } catch (error) {
+      console.error("Error initializing Google Maps:", error);
+      setMapInitError("Error al inicializar el mapa. Por favor, recargue la página.");
+      toast({
+        title: "Error",
+        description: "No se pudo inicializar el mapa. Por favor, recargue la página.",
+        duration: 5000,
+      });
+    }
     
     return () => {
-      newDirectionsRenderer.setMap(null);
+      if (directionsRenderer) {
+        directionsRenderer.setMap(null);
+      }
     };
   }, []);
 
@@ -90,51 +180,59 @@ const MapSection: React.FC<MapSectionProps> = ({
   useEffect(() => {
     if (!window.google || !map) return;
 
-    // Setup autocomplete for origin, destination, and new stop input fields
-    if (originInputRef.current) {
-      setupPlaceAutocomplete(originInputRef.current, (place) => {
-        if (!place.geometry) {
-          console.log("Returned place contains no geometry");
-          return;
-        }
-        setOrigin({
-          lat: place.geometry.location!.lat(),
-          lng: place.geometry.location!.lng(),
-        });
-        setOriginPlace(place.formatted_address || '');
-      });
-    }
-
-    if (destinationInputRef.current) {
-      setupPlaceAutocomplete(destinationInputRef.current, (place) => {
-        if (!place.geometry) {
-          console.log("Returned place contains no geometry");
-          return;
-        }
-        setDestination({
-          lat: place.geometry.location!.lat(),
-          lng: place.geometry.location!.lng(),
-        });
-        setDestinationPlace(place.formatted_address || '');
-      });
-    }
-    
-    if (newStopInputRef.current) {
-      setupPlaceAutocomplete(newStopInputRef.current, (place) => {
-        if (!place.geometry) return;
-        
-        // Add the selected place as a stop
-        addNewStop(
-          place.formatted_address || place.name || '',
-          {
+    try {
+      // Setup autocomplete for origin, destination, and new stop input fields
+      if (originInputRef.current) {
+        setupPlaceAutocomplete(originInputRef.current, (place) => {
+          if (!place.geometry) {
+            console.log("Returned place contains no geometry");
+            return;
+          }
+          setOrigin({
             lat: place.geometry.location!.lat(),
             lng: place.geometry.location!.lng(),
+          });
+          setOriginPlace(place.formatted_address || '');
+        });
+      }
+
+      if (destinationInputRef.current) {
+        setupPlaceAutocomplete(destinationInputRef.current, (place) => {
+          if (!place.geometry) {
+            console.log("Returned place contains no geometry");
+            return;
           }
-        );
-        setNewStopName('');
+          setDestination({
+            lat: place.geometry.location!.lat(),
+            lng: place.geometry.location!.lng(),
+          });
+          setDestinationPlace(place.formatted_address || '');
+        });
+      }
+      
+      if (newStopInputRef.current) {
+        setupPlaceAutocomplete(newStopInputRef.current, (place) => {
+          if (!place.geometry) return;
+          
+          // Add the selected place as a stop
+          addNewStop(
+            place.formatted_address || place.name || '',
+            {
+              lat: place.geometry.location!.lat(),
+              lng: place.geometry.location!.lng(),
+            }
+          );
+          setNewStopName('');
+        });
+      }
+    } catch (error) {
+      console.error("Error setting up place autocomplete:", error);
+      toast({
+        title: "Error",
+        description: "Error al configurar la búsqueda de lugares",
+        duration: 3000,
       });
     }
-    
   }, [map]);
 
   // Setup place autocomplete for an input element
@@ -339,43 +437,43 @@ const MapSection: React.FC<MapSectionProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Seleccione su ruta</CardTitle>
-        <CardDescription>
+    <Card className="glass-card bg-slate-900/50 border-blue-500/20">
+      <CardHeader className="border-b border-blue-900/30">
+        <CardTitle className="text-white">Seleccione su ruta</CardTitle>
+        <CardDescription className="text-gray-400">
           Indique el origen, destino y paradas intermedias de su viaje
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         <div className="grid gap-4">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-blue-400" />
             <Input
               type="text"
               id="origin-input"
               placeholder="Origen"
               value={originPlace}
               onChange={(e) => setOriginPlace(e.target.value)}
-              className="pl-8"
+              className="pl-8 bg-slate-800/70 border border-blue-500/30 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               ref={originInputRef}
             />
           </div>
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-blue-400" />
             <Input
               type="text"
               id="destination-input"
               placeholder="Destino"
               value={destinationPlace}
               onChange={(e) => setDestinationPlace(e.target.value)}
-              className="pl-8"
+              className="pl-8 bg-slate-800/70 border border-blue-500/30 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               ref={destinationInputRef}
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="new-stop">Parada Intermedia</Label>
+          <Label htmlFor="new-stop" className="text-blue-400">Parada Intermedia</Label>
           <div className="relative">
             <Input
               type="text"
@@ -384,6 +482,7 @@ const MapSection: React.FC<MapSectionProps> = ({
               value={newStopName}
               onChange={handleNewStopInputChange}
               ref={newStopInputRef}
+              className="bg-slate-800/70 border border-blue-500/30 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               onBlur={() => {
                 // Delay hiding suggestions to allow click events on the suggestions
                 setTimeout(() => setShowSuggestions(false), 200);
@@ -397,11 +496,11 @@ const MapSection: React.FC<MapSectionProps> = ({
             
             {/* Suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-800 py-1 shadow-lg ring-1 ring-blue-500 border border-blue-500/30">
                 {suggestions.map((suggestion, index) => (
                   <div 
                     key={index}
-                    className="cursor-pointer px-4 py-2 text-sm hover:bg-gray-100"
+                    className="cursor-pointer px-4 py-2 text-sm hover:bg-blue-900/30 text-gray-300"
                     onClick={() => selectSuggestion(suggestion)}
                   >
                     {suggestion}
@@ -411,7 +510,12 @@ const MapSection: React.FC<MapSectionProps> = ({
             )}
             
             <div className="mt-2">
-              <Button type="button" size="sm" onClick={addIntermediateStop}>
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={addIntermediateStop}
+                className="bg-blue-900/30 text-blue-400 border border-blue-500/30 hover:bg-blue-800/50"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Añadir
               </Button>
@@ -421,12 +525,18 @@ const MapSection: React.FC<MapSectionProps> = ({
 
         {intermediateStops.length > 0 && (
           <div className="space-y-2">
-            <Label>Paradas Intermedias:</Label>
+            <Label className="text-blue-400">Paradas Intermedias:</Label>
             <ul className="list-none space-y-1">
               {intermediateStops.map((stop) => (
-                <li key={stop.id} className="flex items-center justify-between p-2 bg-gray-100 rounded-md">
-                  <span>{stop.placeName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeIntermediateStop(stop.id)}>
+                <li key={stop.id} className="flex items-center justify-between p-2 bg-slate-800/50 border border-blue-500/20 rounded-md">
+                  <span className="text-gray-300">{stop.placeName}</span>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => removeIntermediateStop(stop.id)}
+                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 </li>
@@ -435,16 +545,33 @@ const MapSection: React.FC<MapSectionProps> = ({
           </div>
         )}
 
-        <div className="h-[400px] rounded-md" ref={mapRef} />
+        <div className="h-[400px] rounded-md overflow-hidden border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+          {mapInitError ? (
+            <div className="w-full h-full flex items-center justify-center bg-slate-800/70">
+              <div className="text-center p-4">
+                <div className="text-red-400 mb-2">{mapInitError}</div>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                  className="border-blue-500/30 text-blue-400"
+                >
+                  Reintentar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div ref={mapRef} className="w-full h-full" />
+          )}
+        </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between p-3 bg-slate-800/50 border border-blue-500/20 rounded-md">
           <div className="flex items-center">
-            <MapPin className="h-4 w-4 mr-2" />
-            <span>Distancia: {distance.toFixed(1)} km</span>
+            <MapPin className="h-4 w-4 mr-2 text-blue-400" />
+            <span className="text-gray-300">Distancia: <strong className="text-white">{distance.toFixed(1)} km</strong></span>
           </div>
           {duration && (
             <div className="flex items-center">
-              <span>Duración: {duration}</span>
+              <span className="text-gray-300">Duración: <strong className="text-white">{duration}</strong></span>
             </div>
           )}
         </div>
