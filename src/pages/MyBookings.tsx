@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -18,6 +17,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
 interface BookingUser {
   name: string;
@@ -25,30 +25,18 @@ interface BookingUser {
   phone: string;
 }
 
-interface Booking {
-  id: string;
+// Define the type of the bookings table row
+type BookingRow = Database['public']['Tables']['bookings']['Row'];
+
+interface Booking extends BookingRow {
   userData?: BookingUser;
-  user_id: string;
-  origin: string;
-  destination: string;
   vehicleType?: string;
-  vehicle_type: string;
   passengerCount?: number;
-  passenger_count?: number;
   departureDate?: string | Date;
-  departure_date: string;
   departureTime?: string;
-  departure_time: string;
   returnDate?: string | Date | null;
-  return_date?: string | null;
   returnTime?: string | null;
-  return_time?: string | null;
-  status: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada';
-  cost: number | string;
-  distance: number;
-  duration?: string;
   createdAt?: string;
-  created_at: string;
 }
 
 const MyBookings = () => {
@@ -78,7 +66,7 @@ const MyBookings = () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user?.id || '')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -87,7 +75,7 @@ const MyBookings = () => {
       
       // Process bookings data
       if (data) {
-        const processedBookings = data.map((booking: any) => {
+        const processedBookings = data.map((booking: BookingRow) => {
           return {
             ...booking,
             // Map fields for backward compatibility

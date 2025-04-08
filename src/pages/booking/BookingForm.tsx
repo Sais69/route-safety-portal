@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Clock, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 
 interface BookingFormProps {
   vehicleType: string;
@@ -43,6 +44,8 @@ interface UserData {
   email: string;
   phone: string;
 }
+
+type BookingInsert = Database['public']['Tables']['bookings']['Insert'];
 
 const BookingForm: React.FC<BookingFormProps> = ({
   vehicleType,
@@ -130,21 +133,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
       setIsSubmitting(true);
       
       // Format the booking data for Supabase
-      const bookingData = {
+      const bookingData: BookingInsert = {
         user_id: user.id,
         origin: originPlace,
         destination: destinationPlace,
-        origin_coords: origin,
-        destination_coords: destination,
+        origin_coords: origin as any,
+        destination_coords: destination as any,
         intermediate_stops: intermediateStops.map(stop => ({ 
           id: stop.id, 
           placeName: stop.placeName, 
           location: stop.location 
-        })),
+        })) as any,
         vehicle_type: vehicleType,
-        departure_date: departureDate?.toISOString(),
+        departure_date: departureDate?.toISOString() || '',
         departure_time: departureTime,
-        return_date: roundTrip ? returnDate?.toISOString() : null,
+        return_date: roundTrip ? returnDate?.toISOString() || null : null,
         return_time: roundTrip ? returnTime : null,
         round_trip: roundTrip,
         distance: parseFloat(distance.toFixed(2)),

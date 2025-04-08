@@ -20,6 +20,7 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  // We now use local storage as a fallback, but primarily rely on the AuthContext
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   
   if (!isAuthenticated) {
@@ -31,35 +32,33 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/booking" element={<Booking />} />
-                <Route 
-                  path="/my-bookings" 
-                  element={
-                    <ProtectedRoute>
-                      <MyBookings />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/booking" element={<Booking />} />
+              <Route 
+                path="/my-bookings" 
+                element={
+                  <ProtectedRoute>
+                    <MyBookings />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
