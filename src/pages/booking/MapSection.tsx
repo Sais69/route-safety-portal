@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -174,11 +173,8 @@ const MapSection: React.FC<MapSectionProps> = ({
     } catch (error) {
       console.error("Error initializing Google Maps:", error);
       setMapInitError("Error al inicializar el mapa. Por favor, recargue la página.");
-      toast({
-        title: "Error",
-        description: "No se pudo inicializar el mapa. Por favor, recargue la página.",
-        duration: 5000,
-      });
+      // Fixed toast error - Using just the text instead of object with title/description
+      toast("Error al inicializar el mapa. Por favor, recargue la página.");
     }
     
     return () => {
@@ -208,10 +204,8 @@ const MapSection: React.FC<MapSectionProps> = ({
     // Short timeout to ensure cleanup before recreating
     setTimeout(() => {
       setIsReloadingMap(false);
-      toast({
-        title: "Recargando mapa",
-        description: "Por favor espere mientras recargamos el mapa...",
-      });
+      // Fixed toast error - Using just the text instead of object with title/description
+      toast("Recargando mapa. Por favor espere...");
     }, 500);
   };
 
@@ -269,7 +263,6 @@ const MapSection: React.FC<MapSectionProps> = ({
       uiToast({
         title: "Error",
         description: "Error al configurar la búsqueda de lugares",
-        duration: 3000,
       });
     }
   }, [map, setOrigin, setOriginPlace, setDestination, setDestinationPlace]);
@@ -360,7 +353,6 @@ const MapSection: React.FC<MapSectionProps> = ({
           uiToast({
             title: "Error al calcular la ruta",
             description: "No se pudo encontrar una ruta con los puntos especificados.",
-            duration: 3000,
           });
         }
       }
@@ -470,7 +462,6 @@ const MapSection: React.FC<MapSectionProps> = ({
         uiToast({
           title: "Error al agregar parada",
           description: "No se pudo encontrar la ubicación especificada.",
-          duration: 3000,
         });
       }
     });
