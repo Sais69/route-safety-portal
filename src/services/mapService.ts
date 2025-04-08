@@ -30,10 +30,16 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       resolve();
     };
 
+    // Eliminar cualquier script de Google Maps que pudiera estar fallando
+    const existingScript = document.getElementById('google-maps-script');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
     // Crear el script
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=weekly`;
     script.async = true;
     script.defer = true;
     
@@ -62,7 +68,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
 
 // Función para calcular el costo del viaje
 export const calculateCost = (vehicleType: string, distance: number, roundTrip: boolean): string => {
-  // Establecer tarifas por kilómetro según tipo de vehículo
+  // Establecer tarifas por kilómetro según tipo de vehículo - solo para cálculo interno
   const ratePerKm = {
     furgoneta: 0.89,
     microbus: 1.29,
