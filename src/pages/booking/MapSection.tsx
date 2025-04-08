@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, MapPin, Plus, X } from 'lucide-react';
+import { Search, MapPin, Plus, X, RefreshCw } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 
 interface MapSectionProps {
   origin: google.maps.LatLngLiteral | null;
@@ -64,10 +65,11 @@ const MapSection: React.FC<MapSectionProps> = ({
   const originInputRef = useRef<HTMLInputElement>(null);
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const newStopInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [mapInitError, setMapInitError] = useState<string | null>(null);
+  const [isReloadingMap, setIsReloadingMap] = useState(false);
 
-  // Initialize map and directions service
+  // Initialize map and directions service with error handling
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
@@ -75,7 +77,7 @@ const MapSection: React.FC<MapSectionProps> = ({
       const mapOptions = {
         center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
         zoom: 12,
-        mapId: 'YOUR_MAP_ID',
+        // Remove mapId to avoid conflicts with styles
         styles: [
           {
             "featureType": "all",
@@ -148,6 +150,16 @@ const MapSection: React.FC<MapSectionProps> = ({
       const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
       setMap(newMap);
 
+      // Add error handling for map initialization
+      newMap.addListener('idle', () => {
+        console.log('Map is fully loaded and ready');
+      });
+
+      newMap.addListener('error', (e: any) => {
+        console.error('Map load error:', e);
+        setMapInitError('Error cargando el mapa. Intente recargar la página.');
+      });
+
       const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({
         map: newMap,
         suppressMarkers: false,
@@ -174,9 +186,36 @@ const MapSection: React.FC<MapSectionProps> = ({
         directionsRenderer.setMap(null);
       }
     };
-  }, []);
+  }, [isReloadingMap]); // Add isReloadingMap dependency to allow map reloading
 
-  // Initialize place autocomplete
+  // Function to reload the map if there are issues
+  const handleReloadMap = () => {
+    setIsReloadingMap(true);
+    setMapInitError(null);
+    
+    // Remove previous map instance
+    if (directionsRenderer) {
+      directionsRenderer.setMap(null);
+      setDirectionsRenderer(null);
+    }
+    
+    if (map) {
+      // @ts-ignore - force clear map
+      map.set(null);
+      setMap(null);
+    }
+    
+    // Short timeout to ensure cleanup before recreating
+    setTimeout(() => {
+      setIsReloadingMap(false);
+      toast({
+        title: "Recargando mapa",
+        description: "Por favor espere mientras recargamos el mapa...",
+      });
+    }, 500);
+  };
+
+  // Initialize place autocomplete with error handling
   useEffect(() => {
     if (!window.google || !map) return;
 
@@ -227,13 +266,13 @@ const MapSection: React.FC<MapSectionProps> = ({
       }
     } catch (error) {
       console.error("Error setting up place autocomplete:", error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Error al configurar la búsqueda de lugares",
         duration: 3000,
       });
     }
-  }, [map]);
+  }, [map, setOrigin, setOriginPlace, setDestination, setDestinationPlace]);
 
   // Setup place autocomplete for an input element
   const setupPlaceAutocomplete = (
@@ -263,7 +302,7 @@ const MapSection: React.FC<MapSectionProps> = ({
     }
   };
 
-  // Calculate route on origin or destination change
+  // Calculate route on origin or destination change with error handling
   useEffect(() => {
     if (origin && destination) {
       calculateRouteWithDirections(origin, destination, intermediateStops);
@@ -299,7 +338,13 @@ const MapSection: React.FC<MapSectionProps> = ({
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
-          directionsRenderer?.setDirections(result);
+          if (directionsRenderer) {
+            directionsRenderer.setDirections(result);
+          } else {
+            console.error('DirectionsRenderer is not initialized');
+            handleReloadMap();
+            return;
+          }
 
           // Calculate total distance
           let totalDistance = 0;
@@ -312,7 +357,7 @@ const MapSection: React.FC<MapSectionProps> = ({
           calculateRoute();
         } else {
           console.error('Directions request failed with status: ', status);
-          toast({
+          uiToast({
             title: "Error al calcular la ruta",
             description: "No se pudo encontrar una ruta con los puntos especificados.",
             duration: 3000,
@@ -422,7 +467,7 @@ const MapSection: React.FC<MapSectionProps> = ({
         setShowSuggestions(false);
       } else {
         console.error('Geocode was not successful for the following reason: ' + status);
-        toast({
+        uiToast({
           title: "Error al agregar parada",
           description: "No se pudo encontrar la ubicación especificada.",
           duration: 3000,
@@ -529,13 +574,13 @@ const MapSection: React.FC<MapSectionProps> = ({
             <ul className="list-none space-y-1">
               {intermediateStops.map((stop) => (
                 <li key={stop.id} className="flex items-center justify-between p-2 bg-slate-800/50 border border-blue-500/20 rounded-md">
-                  <span className="text-gray-300">{stop.placeName}</span>
+                  <span className="text-gray-300 break-words flex-1 mr-2">{stop.placeName}</span>
                   <Button 
                     type="button" 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => removeIntermediateStop(stop.id)}
-                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
+                    className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 flex-shrink-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -545,13 +590,13 @@ const MapSection: React.FC<MapSectionProps> = ({
           </div>
         )}
 
-        <div className="h-[400px] rounded-md overflow-hidden border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+        <div className="h-[400px] rounded-md overflow-hidden border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)] relative">
           {mapInitError ? (
             <div className="w-full h-full flex items-center justify-center bg-slate-800/70">
               <div className="text-center p-4">
                 <div className="text-red-400 mb-2">{mapInitError}</div>
                 <Button 
-                  onClick={() => window.location.reload()}
+                  onClick={handleReloadMap}
                   variant="outline"
                   className="border-blue-500/30 text-blue-400"
                 >
@@ -560,7 +605,18 @@ const MapSection: React.FC<MapSectionProps> = ({
               </div>
             </div>
           ) : (
-            <div ref={mapRef} className="w-full h-full" />
+            <>
+              <div ref={mapRef} className="w-full h-full" />
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="absolute top-2 right-2 bg-slate-800/80 border-blue-500/30 text-blue-400 z-10 hover:bg-slate-700"
+                onClick={handleReloadMap}
+                title="Recargar mapa"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </>
           )}
         </div>
 

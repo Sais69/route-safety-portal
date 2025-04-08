@@ -37,6 +37,8 @@ interface BookingFormProps {
     location: google.maps.LatLngLiteral;
   }>;
   duration: string;
+  returnDistance?: number;
+  returnDuration?: string;
 }
 
 interface UserData {
@@ -67,7 +69,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
   originPlace,
   destinationPlace,
   intermediateStops,
-  duration
+  duration,
+  returnDistance,
+  returnDuration
 }) => {
   const { user } = useAuth();
   const [userData, setUserData] = useState<UserData>({
@@ -76,7 +80,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
     phone: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [returnDuration, setReturnDuration] = useState<string>("");
   const [vehiclePrices, setVehiclePrices] = useState({
     furgoneta: 0.89,
     microbus: 1.29,
@@ -115,23 +118,30 @@ const BookingForm: React.FC<BookingFormProps> = ({
     }
   }, [vehicleType, setVehicleType]);
 
-  // Calculate return duration based on current duration
-  useEffect(() => {
-    if (duration) {
-      // Simple calculation, assuming return would take the same time
-      setReturnDuration(duration);
-    }
-  }, [duration]);
-
-  // Recalculate price when vehicle type changes
+  // Recalculate price when relevant factors change
   useEffect(() => {
     if (distance > 0) {
       const pricePerKm = vehiclePrices[vehicleType as keyof typeof vehiclePrices] || vehiclePrices.furgoneta;
-      const baseCost = Math.round(distance * pricePerKm * 100) / 100;
-      const finalCost = roundTrip ? baseCost * 1.8 : baseCost; // Round trip gets a 10% discount on return route
-      setCalculatedCost(finalCost.toFixed(2));
+      let totalDistance = distance;
+      
+      // Add return distance if roundTrip and returnDistance is available
+      if (roundTrip && returnDistance && returnDistance > 0) {
+        totalDistance += returnDistance;
+        const baseCost = Math.round(totalDistance * pricePerKm * 100) / 100;
+        const finalCost = Math.round(baseCost * 0.9 * 100) / 100; // 10% discount for round trip
+        setCalculatedCost(finalCost.toFixed(2));
+      } else if (roundTrip) {
+        // If returnDistance is not available, use the original distance for both ways with discount
+        const baseCost = Math.round(distance * 2 * pricePerKm * 100) / 100;
+        const finalCost = Math.round(baseCost * 0.9 * 100) / 100; // 10% discount for round trip
+        setCalculatedCost(finalCost.toFixed(2));
+      } else {
+        // One way trip
+        const finalCost = Math.round(distance * pricePerKm * 100) / 100;
+        setCalculatedCost(finalCost.toFixed(2));
+      }
     }
-  }, [distance, vehicleType, roundTrip, vehiclePrices]);
+  }, [vehicleType, distance, roundTrip, vehiclePrices, returnDistance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,6 +231,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
       toast.error(`Error al realizar la reserva: ${error.message || 'Inténtelo de nuevo más tarde'}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Vehicle display information without showing the cost per km
+  const vehicleInfo = {
+    furgoneta: {
+      name: "Furgoneta",
+      capacity: "17 pasajeros"
+    },
+    microbus: {
+      name: "Microbús",
+      capacity: "28 pasajeros"
+    },
+    bus: {
+      name: "Bus",
+      capacity: "40 pasajeros"
     }
   };
 
@@ -329,6 +355,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                     <Clock className="h-4 w-4 mr-1" /> Duración estimada: {duration}
                   </div>
                 )}
+                <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
+                  <MapPin className="h-4 w-4 mr-1" /> Distancia: {distance.toFixed(1)} km
+                </div>
               </div>
               
               {roundTrip && (
@@ -340,11 +369,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
                   <div className="flex items-center ml-6 text-white">
                     <p>{returnDate?.toLocaleDateString() || "Fecha no seleccionada"} - {returnTime || "Hora no seleccionada"}</p>
                   </div>
-                  {returnDuration && (
-                    <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
-                      <Clock className="h-4 w-4 mr-1" /> Duración estimada: {returnDuration}
-                    </div>
-                  )}
+                  <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
+                    <Clock className="h-4 w-4 mr-1" /> Duración estimada: {returnDuration || duration || "Calculando..."}
+                  </div>
+                  <div className="flex items-center ml-6 text-gray-400 text-sm mt-1">
+                    <MapPin className="h-4 w-4 mr-1" /> Distancia: {returnDistance ? returnDistance.toFixed(1) : distance.toFixed(1)} km
+                  </div>
                 </div>
               )}
             </div>
@@ -352,7 +382,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           
           <Separator className="bg-blue-500/20" />
           
-          {/* Vehicle selection */}
+          {/* Vehicle selection - with cost removed */}
           <div className="space-y-3">
             <Label className="text-white">Tipo de vehículo</Label>
             <RadioGroup 
@@ -365,10 +395,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <Label htmlFor="furgoneta" className="flex-1 cursor-pointer">
                   <div className="flex justify-between items-center">
                     <div>
-                      <div className="text-white">Furgoneta</div>
-                      <div className="text-sm text-gray-400">17 pasajeros</div>
+                      <div className="text-white">{vehicleInfo.furgoneta.name}</div>
+                      <div className="text-sm text-gray-400">{vehicleInfo.furgoneta.capacity}</div>
                     </div>
-                    <div className="text-blue-400 font-medium">${vehiclePrices.furgoneta}/km</div>
                   </div>
                 </Label>
               </div>
@@ -377,10 +406,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <Label htmlFor="microbus" className="flex-1 cursor-pointer">
                   <div className="flex justify-between items-center">
                     <div>
-                      <div className="text-white">Microbús</div>
-                      <div className="text-sm text-gray-400">28 pasajeros</div>
+                      <div className="text-white">{vehicleInfo.microbus.name}</div>
+                      <div className="text-sm text-gray-400">{vehicleInfo.microbus.capacity}</div>
                     </div>
-                    <div className="text-blue-400 font-medium">${vehiclePrices.microbus}/km</div>
                   </div>
                 </Label>
               </div>
@@ -389,10 +417,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <Label htmlFor="bus" className="flex-1 cursor-pointer">
                   <div className="flex justify-between items-center">
                     <div>
-                      <div className="text-white">Bus</div>
-                      <div className="text-sm text-gray-400">40 pasajeros</div>
+                      <div className="text-white">{vehicleInfo.bus.name}</div>
+                      <div className="text-sm text-gray-400">{vehicleInfo.bus.capacity}</div>
                     </div>
-                    <div className="text-blue-400 font-medium">${vehiclePrices.bus}/km</div>
                   </div>
                 </Label>
               </div>
@@ -405,17 +432,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
           <div className="space-y-4 bg-slate-800/70 p-4 rounded-lg border border-blue-500/20">
             <h3 className="font-medium text-white mb-3">Resumen de costos</h3>
             <div className="flex justify-between items-center text-white">
-              <span>Distancia:</span>
-              <span>{distance.toFixed(1)} km</span>
+              <span>Distancia total:</span>
+              <span>
+                {roundTrip && returnDistance 
+                  ? (distance + returnDistance).toFixed(1) 
+                  : (roundTrip ? (distance * 2).toFixed(1) : distance.toFixed(1))
+                } km
+              </span>
             </div>
             <div className="flex justify-between items-center text-white">
-              <span>Tarifa por km ({vehicleType}):</span>
-              <span>${vehiclePrices[vehicleType as keyof typeof vehiclePrices] || vehiclePrices.furgoneta}/km</span>
+              <span>Tipo de vehículo:</span>
+              <span>{vehicleInfo[vehicleType as keyof typeof vehicleInfo].name}</span>
             </div>
             {roundTrip && (
               <div className="flex justify-between items-center text-white">
                 <span>Ida y vuelta:</span>
-                <span>Descuento del 10% en regreso</span>
+                <span>Descuento del 10%</span>
               </div>
             )}
             <Separator className="bg-blue-500/20" />
@@ -431,7 +463,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <li>Combustible</li>
                 <li>Seguro de viaje</li>
                 <li>Monitoreo GPS en tiempo real</li>
-                {roundTrip && <li>Servicio de ida y vuelta con 10% de descuento en el retorno</li>}
+                {roundTrip && <li>Servicio de ida y vuelta con 10% de descuento</li>}
               </ul>
             </div>
           </div>

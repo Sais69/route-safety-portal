@@ -1,6 +1,11 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { calculateCost, loadGoogleMapsScript, isGoogleMapsLoaded } from '@/services/mapService';
+import { 
+  calculateCost, 
+  loadGoogleMapsScript, 
+  isGoogleMapsLoaded,
+  calculateReturnRoute
+} from '@/services/mapService';
 import BookingHeader from './BookingHeader';
 import MapSection from './MapSection';
 import BookingForm from './BookingForm';
@@ -27,6 +32,11 @@ const BookingPage: React.FC = () => {
   const [duration, setDuration] = useState<string>('');
   const [isMapLoaded, setIsMapLoaded] = useState<boolean>(false);
   const [mapLoadError, setMapLoadError] = useState<string | null>(null);
+  const [loadAttempts, setLoadAttempts] = useState<number>(0);
+  
+  // Return trip calculation states
+  const [returnDistance, setReturnDistance] = useState<number>(0);
+  const [returnDuration, setReturnDuration] = useState<string>('');
 
   // Form related states
   const [vehicleType, setVehicleType] = useState('furgoneta');
@@ -37,7 +47,7 @@ const BookingPage: React.FC = () => {
   const [returnTime, setReturnTime] = useState('18:00');
   const [totalCost, setTotalCost] = useState('0');
 
-  // Load Google Maps when the component mounts
+  // Load Google Maps when the component mounts with retry mechanism
   useEffect(() => {
     const loadMap = async () => {
       try {
@@ -50,23 +60,48 @@ const BookingPage: React.FC = () => {
         console.error('Error loading Google Maps:', error);
         setMapLoadError('Error al cargar Google Maps. Por favor, recargue la página.');
         toast.error('Error al cargar Google Maps. Por favor, recargue la página.');
+        
+        // Increment loading attempts count
+        setLoadAttempts(prev => prev + 1);
       }
     };
     
     loadMap();
 
-    // Add an interval to check if the map is failing to load after 5 seconds
-    const checkMapLoadingTimeout = setTimeout(() => {
-      if (!isGoogleMapsLoaded() && !isMapLoaded) {
-        console.log('Retrying Google Maps load...');
-        loadMap();
-      }
-    }, 5000);
+    // Add multiple retries with increasing timeouts
+    if (loadAttempts < 3) {
+      const retryTimeout = setTimeout(() => {
+        if (!isGoogleMapsLoaded() && !isMapLoaded) {
+          console.log(`Retrying Google Maps load... Attempt ${loadAttempts + 1}`);
+          loadMap();
+        }
+      }, 5000 + (loadAttempts * 2000)); // Increasing timeout with each attempt
 
-    return () => {
-      clearTimeout(checkMapLoadingTimeout);
+      return () => {
+        clearTimeout(retryTimeout);
+      };
+    }
+  }, [loadAttempts, isMapLoaded]);
+
+  // Calculate return route when roundTrip is enabled and we have valid origin and destination
+  useEffect(() => {
+    const getReturnRoute = async () => {
+      if (roundTrip && origin && destination && isGoogleMapsLoaded()) {
+        try {
+          const returnRouteInfo = await calculateReturnRoute(destination, origin, intermediateStops);
+          setReturnDistance(returnRouteInfo.distance);
+          setReturnDuration(returnRouteInfo.duration);
+        } catch (error) {
+          console.error('Error calculating return route:', error);
+          // Use the outbound route data as fallback
+          setReturnDistance(distance);
+          setReturnDuration(duration);
+        }
+      }
     };
-  }, []);
+
+    getReturnRoute();
+  }, [roundTrip, origin, destination, intermediateStops, distance, duration]);
 
   // Calculate route using Google Directions API with directionsRenderer
   const calculateRoute = useCallback(() => {
@@ -210,6 +245,18 @@ const BookingPage: React.FC = () => {
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
                   <p className="text-white">{mapLoadError || 'Cargando mapa...'}</p>
+                  {loadAttempts > 0 && (
+                    <button 
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      onClick={() => {
+                        setMapLoadError(null);
+                        setLoadAttempts(0);
+                        window.location.reload();
+                      }}
+                    >
+                      Reintentar carga
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -257,6 +304,8 @@ const BookingPage: React.FC = () => {
               destinationPlace={destinationPlace}
               intermediateStops={intermediateStops}
               duration={duration}
+              returnDistance={returnDistance}
+              returnDuration={returnDuration}
             />
           </div>
         </div>
