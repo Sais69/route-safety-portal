@@ -1,6 +1,6 @@
 
 // API key para Google Maps
-const GOOGLE_MAPS_API_KEY = 'AIzaSyA5xkLLUtITRCM3ii84HL4YYbt2CQ3qGSk'; // Clave de API para desarrollo
+const GOOGLE_MAPS_API_KEY = 'AIzaSyDPQDyeNZRmcqO9t9FodKEZgN-_s5Hvg'; // Clave de API actualizada
 
 // Declaración global para el callback de Google Maps
 declare global {
@@ -43,10 +43,10 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       return;
     }
 
-    // Crear el script con opciones más específicas para asegurar la compatibilidad
+    // Crear el script con opciones específicas
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=weekly&region=EC&language=es`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=quarterly&region=EC&language=es`;
     script.async = true;
     script.defer = true;
     
@@ -60,7 +60,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     const timeoutId = setTimeout(() => {
       console.error('Google Maps script load timeout');
       reject(new Error('Google Maps script load timeout'));
-    }, 15000); // Aumentamos el timeout a 15 segundos
+    }, 20000); // Aumentamos el timeout a 20 segundos
 
     // Cuando se cargue exitosamente, limpiar el timeout
     script.onload = () => {

@@ -1,8 +1,9 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ShieldCheck, Bus, MapPin } from "lucide-react";
+import { motion } from "framer-motion";
 
 const Hero = () => {
   return (
@@ -12,25 +13,50 @@ const Hero = () => {
       
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-2 gap-8 items-center">
-          <div className="space-y-8">
+          <motion.div 
+            className="space-y-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+          >
             <div className="space-y-6">
-              <span className="inline-block py-1 px-3 bg-blue-900/30 border border-blue-500/30 rounded-full text-blue-400 text-sm font-medium">
+              <motion.span 
+                className="inline-block py-1 px-3 bg-blue-900/30 border border-blue-500/30 rounded-full text-blue-400 text-sm font-medium"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
                 Transporte Seguro
-              </span>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+              </motion.span>
+              <motion.h1 
+                className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.3 }}
+              >
                 Viaja seguro con{" "}
                 <span className="relative">
                   Buker
                   <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></span>
                 </span>
-              </h1>
-              <p className="text-xl text-gray-300 max-w-xl">
+              </motion.h1>
+              <motion.p 
+                className="text-xl text-gray-300 max-w-xl"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.7, delay: 0.4 }}
+              >
                 Ofrecemos servicios de transporte con vehículos equipados con la última tecnología 
                 de seguridad, incluyendo monitoreo GPS en tiempo real.
-              </p>
+              </motion.p>
             </div>
             
-            <div className="flex flex-wrap gap-4">
+            <motion.div 
+              className="flex flex-wrap gap-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
               <Link to="/booking">
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-6 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_20px_rgba(59,130,246,0.7)] transition-all">
                   Reservar Ahora
@@ -41,9 +67,14 @@ const Hero = () => {
                   Ver Vehículos
                 </Button>
               </a>
-            </div>
+            </motion.div>
             
-            <div className="flex flex-wrap items-center gap-6 pt-4">
+            <motion.div 
+              className="flex flex-wrap items-center gap-6 pt-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.8 }}
+            >
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-blue-900/30 border border-blue-500/30 flex items-center justify-center mr-3">
                   <ShieldCheck className="h-5 w-5 text-blue-400" />
@@ -62,10 +93,20 @@ const Hero = () => {
                 </div>
                 <span className="text-gray-300">Flota Moderna</span>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
           
-          <div className="hidden md:block relative">
+          <motion.div 
+            className="hidden md:block relative"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 1, 
+              type: "spring",
+              stiffness: 100,
+              delay: 0.3 
+            }}
+          >
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/20 rounded-full filter blur-3xl"></div>
             <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-500/20 rounded-full filter blur-3xl"></div>
             
@@ -73,7 +114,7 @@ const Hero = () => {
               <div 
                 className="aspect-[4/3] bg-cover bg-center"
                 style={{
-                  backgroundImage: "url('https://images.unsplash.com/photo-1464219789935-c2d9d9aba644?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8YnVzfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=600&q=60')",
+                  backgroundImage: "url('https://epsom.es/wp-content/uploads/2021/12/MicrosoftTeams-image.jpg')",
                 }}
               >
                 <div className="w-full h-full bg-gradient-to-tr from-background/80 to-transparent flex items-end p-6">
@@ -91,7 +132,7 @@ const Hero = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
