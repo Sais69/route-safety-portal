@@ -1,6 +1,13 @@
 
 // API key para Google Maps
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'; // Reemplaza por tu clave de API o usa una variable de entorno
+const GOOGLE_MAPS_API_KEY = 'AIzaSyA5xkLLUtITRCM3ii84HL4YYbt2CQ3qGSk'; // Clave de API para desarrollo
+
+// Declaración global para el callback de Google Maps
+declare global {
+  interface Window {
+    initGoogleMapsCallback: () => void;
+  }
+}
 
 // Función para verificar si Google Maps ya está cargado
 export const isGoogleMapsLoaded = (): boolean => {
