@@ -36,10 +36,17 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       existingScript.remove();
     }
 
-    // Crear el script
+    // Evitar que haya múltiples instancias del callback
+    if (window.google && window.google.maps) {
+      console.log('Google Maps API already loaded, resolving immediately');
+      resolve();
+      return;
+    }
+
+    // Crear el script con opciones más específicas para asegurar la compatibilidad
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=weekly`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=weekly&region=EC&language=es`;
     script.async = true;
     script.defer = true;
     
@@ -53,7 +60,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     const timeoutId = setTimeout(() => {
       console.error('Google Maps script load timeout');
       reject(new Error('Google Maps script load timeout'));
-    }, 10000);
+    }, 15000); // Aumentamos el timeout a 15 segundos
 
     // Cuando se cargue exitosamente, limpiar el timeout
     script.onload = () => {

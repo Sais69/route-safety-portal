@@ -1,25 +1,40 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bus, ArrowLeft, User, Lock, Mail } from "lucide-react";
+import { Bus, ArrowLeft, User, Lock, Mail, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 const Login = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    // Simulate login - in a real app this would verify credentials
-    toast.success("Inicio de sesión exitoso");
+    // Validate form
+    if (!email || !password) {
+      toast.error("Todos los campos son requeridos");
+      setIsLoading(false);
+      return;
+    }
     
-    // Redirect to booking page after successful login
+    // Simulate login - in a real app this would verify credentials with backend
     setTimeout(() => {
+      // Store authentication state in localStorage (this is just a simulation)
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userEmail', email);
+      
+      toast.success("Inicio de sesión exitoso");
+      setIsLoading(false);
+      
+      // Redirect to booking page after successful login
       navigate("/booking");
     }, 1000);
   };
@@ -107,6 +122,8 @@ const Login = () => {
                     placeholder="ejemplo@correo.com" 
                     required 
                     className="pl-10 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-blue-400 focus:ring-blue-400/20"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </motion.div>
@@ -125,6 +142,8 @@ const Login = () => {
                     type="password" 
                     required 
                     className="pl-10 bg-slate-800/50 border-slate-700 text-white focus:border-blue-400 focus:ring-blue-400/20" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
               </motion.div>
@@ -133,8 +152,16 @@ const Login = () => {
                 <Button 
                   type="submit" 
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] border border-blue-600/50 transition-all duration-300"
+                  disabled={isLoading}
                 >
-                  Iniciar sesión
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Cargando
+                    </>
+                  ) : (
+                    "Iniciar sesión"
+                  )}
                 </Button>
               </motion.div>
             </form>
