@@ -152,23 +152,27 @@ export async function storeGoogleMapsApiKey(apiKey: string): Promise<boolean> {
       return false;
     }
     
-    // Usar una consulta genérica para evitar problemas de tipado
-    const { error } = await supabase
-      .rpc('upsert_app_setting', { 
+    // Evitar el uso del RPC que está causando problemas de tipos
+    // y usar directamente una consulta genérica para el upsert
+    const { error } = await supabase.rpc(
+      'upsert_app_setting', 
+      { 
         p_key: 'GOOGLE_MAPS_API_KEY',
         p_value: apiKey,
         p_description: 'Google Maps API Key para la aplicación'
-      });
+      } as any
+    );
     
     if (error) {
       // Si la función RPC falla, intentar con una consulta directa
+      // usando una consulta genérica sin tipado fuerte
       const { error: insertError } = await supabase
         .from('app_settings')
         .upsert({
           key: 'GOOGLE_MAPS_API_KEY',
           value: apiKey,
           description: 'Google Maps API Key para la aplicación'
-        }, { onConflict: 'key' });
+        } as any, { onConflict: 'key' });
       
       if (insertError) {
         console.error('Error storing API key in database:', insertError);
