@@ -20,9 +20,42 @@ const queryClient = new QueryClient();
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-950 to-slate-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
+        <p className="text-white">Cargando...</p>
+      </div>
+    );
+  }
   
   if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Admin Route Component
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, isLoading } = useAuth();
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-slate-950 to-slate-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
+        <p className="text-white">Cargando...</p>
+      </div>
+    );
+  }
+  
+  // Basic admin check - in a real app, you would check user roles
+  // Here we're simply checking if email ends with @admin.com
+  if (!user || !(user.email && user.email.endsWith('@admin.com'))) {
     return <Navigate to="/login" replace />;
   }
   
@@ -54,9 +87,9 @@ function AppRoutes() {
       <Route 
         path="/admin" 
         element={
-          <ProtectedRoute>
+          <AdminRoute>
             <AdminPage />
-          </ProtectedRoute>
+          </AdminRoute>
         } 
       />
       <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />

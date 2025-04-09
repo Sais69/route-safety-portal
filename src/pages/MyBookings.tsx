@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -12,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, RefreshCw } from "lucide-react";
+import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -128,6 +129,11 @@ const MyBookings = () => {
     await fetchBookings();
     setRefreshing(false);
     toast.success("Reservas actualizadas");
+  };
+
+  // Generate Google Maps route link
+  const generateRouteLink = (origin: string, destination: string) => {
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
   };
 
   const pendingBookings = bookings.filter(booking => booking.status === 'pendiente' || booking.status === 'designada');
@@ -330,6 +336,11 @@ const MyBookings = () => {
 };
 
 const BookingCard = ({ booking }: { booking: Booking }) => {
+  // Generate Google Maps route link
+  const generateRouteLink = (origin: string, destination: string) => {
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+  };
+  
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'designada':
@@ -426,6 +437,18 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
                 <span className="font-medium text-sm capitalize text-gray-300">{vehicleType}</span>
               </div>
             </div>
+          </div>
+
+          {/* Route link for Google Maps */}
+          <div className="mt-2">
+            <a 
+              href={generateRouteLink(booking.origin, booking.destination)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              <ExternalLink size={16} className="mr-1" /> Ver ruta en Google Maps
+            </a>
           </div>
 
           <div className="flex flex-wrap gap-4 pt-2">

@@ -33,7 +33,7 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft } from "lucide-react";
+import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,9 +66,9 @@ interface Booking {
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -76,37 +76,107 @@ const AdminPage: React.FC = () => {
   const [totalDistance, setTotalDistance] = useState(0);
   const [completedBookings, setCompletedBookings] = useState(0);
 
-  // Load bookings from localStorage
+  // Check if current user is admin
   useEffect(() => {
-    if (isAuthenticated) {
+    const checkAdminStatus = async () => {
+      if (user) {
+        // Check if the user is an admin (email ends with @admin.com for this demo)
+        // In a real app, you would check against admin roles in your database
+        if (user.email && user.email.endsWith('@admin.com')) {
+          setIsAdmin(true);
+          await fetchBookings();
+        } else {
+          toast.error('No tiene permisos de administrador');
+          navigate('/');
+        }
+      }
+    };
+
+    checkAdminStatus();
+  }, [user, navigate]);
+
+  // Load bookings from Supabase and localStorage
+  const fetchBookings = async () => {
+    try {
+      // Try to get bookings from Supabase first
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching bookings from Supabase:', error);
+      }
+
+      let allBookings: Booking[] = [];
+      
+      // Process Supabase bookings if available
+      if (data && data.length > 0) {
+        allBookings = data.map((booking: any) => ({
+          id: booking.id,
+          userData: {
+            name: booking.user_metadata?.first_name + ' ' + booking.user_metadata?.last_name || 'Usuario',
+            email: booking.user_email || '',
+            phone: booking.user_metadata?.phone || '',
+          },
+          origin: booking.origin,
+          destination: booking.destination,
+          vehicleType: booking.vehicle_type,
+          passengerCount: booking.passenger_count,
+          departureDate: booking.departure_date,
+          departureTime: booking.departure_time,
+          returnDate: booking.return_date,
+          returnTime: booking.return_time,
+          status: booking.status,
+          cost: booking.cost,
+          distance: booking.distance,
+          duration: booking.duration,
+          createdAt: booking.created_at
+        }));
+      }
+
+      // Also check localStorage for backward compatibility
       const storedBookings = localStorage.getItem('bookings');
       if (storedBookings) {
         try {
           const parsedBookings = JSON.parse(storedBookings);
-          setBookings(parsedBookings);
-          setTotalBookings(parsedBookings.length);
-          
-          // Calculate stats
-          const completed = parsedBookings.filter(b => b.status === 'realizada').length;
-          setCompletedBookings(completed);
-          
-          const totalDist = parsedBookings
-            .filter(booking => booking.status === 'realizada')
-            .reduce((total, booking) => total + booking.distance, 0);
-          setTotalDistance(totalDist);
+          // Merge with any bookings that might be only in localStorage (for backward compatibility)
+          const idSet = new Set(allBookings.map(b => b.id));
+          const localOnlyBookings = parsedBookings.filter((b: any) => !idSet.has(b.id));
+          allBookings = [...allBookings, ...localOnlyBookings];
         } catch (e) {
-          console.error('Error parsing bookings', e);
+          console.error('Error parsing local bookings', e);
         }
       }
-    }
-  }, [isAuthenticated]);
 
-  // In a real app, this would be connected to your authentication system
-  const handleLogin = (e: React.FormEvent) => {
+      // Update states
+      setBookings(allBookings);
+      setTotalBookings(allBookings.length);
+      
+      // Calculate stats
+      const completed = allBookings.filter(b => b.status === 'realizada').length;
+      setCompletedBookings(completed);
+      
+      const totalDist = allBookings
+        .filter(booking => booking.status === 'realizada')
+        .reduce((total, booking) => total + booking.distance, 0);
+      setTotalDistance(totalDist);
+      
+    } catch (e) {
+      console.error('Error fetching bookings:', e);
+      toast.error('Error al cargar las reservas');
+    }
+  };
+
+  // Handle admin login
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'admin' && password === 'admin123') {
-      setIsAuthenticated(true);
-    } else {
+    
+    try {
+      await signIn(username, password);
+      // The useEffect will check if user is admin after login
+    } catch (error) {
+      console.error('Login error:', error);
       toast.error('Credenciales incorrectas');
     }
   };
@@ -136,6 +206,11 @@ const AdminPage: React.FC = () => {
     setTotalDistance(totalDist);
     
     toast.success(`Estado de reserva actualizado a: ${newStatus}`);
+  };
+
+  // Generate route link for Google Maps
+  const generateRouteLink = (origin: string, destination: string) => {
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -168,7 +243,8 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  if (!isAuthenticated) {
+  // If user is not authenticated or not admin, show login form
+  if (!user || !isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-background to-slate-900">
         <div className="absolute inset-0 grid-lines opacity-20"></div>
@@ -180,13 +256,15 @@ const AdminPage: React.FC = () => {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium text-gray-300">Usuario</label>
+                <label htmlFor="username" className="text-sm font-medium text-gray-300">Correo electrónico</label>
                 <Input 
                   id="username" 
+                  type="email"
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
                   required
                   className="bg-slate-800/60 border-blue-500/30 text-white"
+                  placeholder="admin@admin.com"
                 />
               </div>
               <div className="space-y-2">
@@ -360,6 +438,14 @@ const AdminPage: React.FC = () => {
                                   <Clock className="h-3 w-3 inline mr-1" /> {booking.duration}
                                 </span>
                               )}
+                              <a 
+                                href={generateRouteLink(booking.origin, booking.destination)} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs flex items-center mt-1 text-blue-400 hover:text-blue-300"
+                              >
+                                <ExternalLink size={12} className="mr-1" /> Ver en Google Maps
+                              </a>
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-200">
