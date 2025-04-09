@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -13,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { CalendarRange, MapPin, Clock, Route, Car, AlertCircle, RefreshCw, ExternalLink, Users, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +50,11 @@ interface Booking extends BookingRow {
   createdAt?: string;
   // Parse intermediate_stops as IntermediateStop[]
   parsedIntermediateStops?: IntermediateStop[];
+  id_conductor?: string;
+  nombre_conductor?: string;
+  placa_vehiculo?: string;
+  modelo_vehiculo?: string;
+  numero_celular_conductor?: string;
 }
 
 const MyBookings = () => {
@@ -448,6 +452,9 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
   const departureTime = booking.departure_time || booking.departureTime;
   const vehicleType = booking.vehicle_type || booking.vehicleType;
   const intermediateStops = booking.parsedIntermediateStops || [];
+  
+  // Driver information
+  const hasDriverAssigned = booking.id_conductor || booking.nombre_conductor;
 
   return (
     <Card className={`glass-card bg-slate-900/50 overflow-hidden border ${getBorderColor(booking.status)} backdrop-blur-sm hover:bg-slate-800/50 transition-colors`}>
@@ -502,6 +509,49 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
               </ul>
             </div>
           )}
+
+          {/* Driver information section */}
+          <div className="mt-2 p-3 bg-slate-800/40 rounded-md border border-blue-500/10">
+            <h4 className="text-sm font-medium text-blue-400 mb-2">Información del conductor:</h4>
+            
+            {hasDriverAssigned ? (
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-gray-300">
+                  <Users size={16} className="mr-2 text-blue-400" />
+                  <span className="font-medium">Conductor:</span>
+                  <span className="ml-2">{booking.nombre_conductor}</span>
+                </div>
+                
+                {booking.numero_celular_conductor && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <Phone size={16} className="mr-2 text-blue-400" />
+                    <span className="font-medium">Teléfono:</span>
+                    <span className="ml-2">{booking.numero_celular_conductor}</span>
+                  </div>
+                )}
+                
+                {booking.modelo_vehiculo && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <Car size={16} className="mr-2 text-blue-400" />
+                    <span className="font-medium">Vehículo:</span>
+                    <span className="ml-2">{booking.modelo_vehiculo}</span>
+                  </div>
+                )}
+                
+                {booking.placa_vehiculo && (
+                  <div className="flex items-center text-sm text-gray-300">
+                    <div className="w-4 h-4 mr-2 flex items-center justify-center">
+                      <span className="text-xs font-bold text-blue-400">P</span>
+                    </div>
+                    <span className="font-medium">Placa:</span>
+                    <span className="ml-2">{booking.placa_vehiculo}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">Conductor aún no asignado.</p>
+            )}
+          </div>
 
           {/* Route link for Google Maps */}
           <div className="mt-2">

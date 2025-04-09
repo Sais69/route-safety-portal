@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -40,6 +39,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -51,7 +51,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink, Calendar, Filter, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink, Calendar, Filter, Trash2, Users, UserPlus, UserCog, CarTaxiFront, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,6 +86,24 @@ interface Booking {
     placeName: string;
     location: google.maps.LatLngLiteral;
   }>;
+  // New driver fields
+  id_conductor?: string;
+  nombre_conductor?: string;
+  placa_vehiculo?: string;
+  modelo_vehiculo?: string;
+  numero_celular_conductor?: string;
+}
+
+// Driver interface
+interface Driver {
+  id: string;
+  nombre: string;
+  apellido: string;
+  numero_celular: string;
+  placa_vehiculo: string;
+  modelo_vehiculo: string;
+  disponible: boolean;
+  fecha_creacion: string;
 }
 
 // Define filter types
@@ -115,6 +134,16 @@ const AdminPage: React.FC = () => {
   });
   const [uniqueUsers, setUniqueUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // New state variables for driver management
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isDriverDialogOpen, setIsDriverDialogOpen] = useState(false);
+  const [isDriverDeleteDialogOpen, setIsDriverDeleteDialogOpen] = useState(false);
+  const [currentDriver, setCurrentDriver] = useState<Driver | null>(null);
+  const [driverToDelete, setDriverToDelete] = useState<string | null>(null);
+  const [isDriverAssignDialogOpen, setIsDriverAssignDialogOpen] = useState(false);
+  const [bookingForDriverAssign, setBookingForDriverAssign] = useState<Booking | null>(null);
+  const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
 
   // Check admin access and redirect if not authorized
   useEffect(() => {
@@ -122,6 +151,27 @@ const AdminPage: React.FC = () => {
     if (user) {
       if (isAdmin) {
         fetchBookings();
+        fetchDrivers();
+
+        // Set up realtime subscription for bookings and drivers
+        const bookingsChannel = supabase
+          .channel('bookings-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+            fetchBookings();
+          })
+          .subscribe();
+        
+        const driversChannel = supabase
+          .channel('drivers-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => {
+            fetchDrivers();
+          })
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(bookingsChannel);
+          supabase.removeChannel(driversChannel);
+        };
       } else {
         toast.error('No tienes permisos de administrador');
         navigate('/');
@@ -171,7 +221,13 @@ const AdminPage: React.FC = () => {
           distance: booking.distance,
           duration: booking.duration,
           createdAt: booking.created_at,
-          intermediate_stops: booking.intermediate_stops || []
+          intermediate_stops: booking.intermediate_stops || [],
+          // New driver-related fields
+          id_conductor: booking.id_conductor || null,
+          nombre_conductor: booking.nombre_conductor || null,
+          placa_vehiculo: booking.placa_vehiculo || null,
+          modelo_vehiculo: booking.modelo_vehiculo || null,
+          numero_celular_conductor: booking.numero_celular_conductor || null
         }));
       }
 
@@ -181,7 +237,6 @@ const AdminPage: React.FC = () => {
         try {
           const parsedBookings = JSON.parse(storedBookings);
           // Merge with any bookings that might be only in localStorage
-          // This is for backwards compatibility
           const idSet = new Set(allBookings.map(b => b.id));
           const localOnlyBookings = parsedBookings.filter((b: any) => !idSet.has(b.id));
           allBookings = [...allBookings, ...localOnlyBookings];
@@ -216,33 +271,159 @@ const AdminPage: React.FC = () => {
     }
   };
   
-  // Filter bookings based on search term and filters
-  const filteredBookings = bookings.filter(booking => {
-    // Search term filter
-    const matchesSearch = 
-      booking.userData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.userData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.destination.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!matchesSearch) return false;
-    
-    // Status filter
-    if (filters.status !== 'all' && booking.status !== filters.status) return false;
-    
-    // User email filter
-    if (filters.userEmail && booking.userData.email !== filters.userEmail) return false;
-    
-    // Date range filter
-    if (filters.dateRange.from || filters.dateRange.to) {
-      const bookingDate = new Date(booking.departureDate);
+  // Fetch drivers from Supabase
+  const fetchDrivers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('*')
+        .order('nombre', { ascending: true });
       
-      if (filters.dateRange.from && bookingDate < filters.dateRange.from) return false;
-      if (filters.dateRange.to && bookingDate > filters.dateRange.to) return false;
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setDrivers(data as Driver[]);
+      }
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+      toast.error('Error al cargar los conductores');
     }
-    
-    return true;
-  });
+  };
+
+  // Add or update a driver
+  const saveDriver = async (driver: Partial<Driver>) => {
+    try {
+      if (driver.id) {
+        // Update existing driver
+        const { error } = await supabase
+          .from('drivers')
+          .update({
+            nombre: driver.nombre,
+            apellido: driver.apellido,
+            numero_celular: driver.numero_celular,
+            placa_vehiculo: driver.placa_vehiculo,
+            modelo_vehiculo: driver.modelo_vehiculo,
+            disponible: driver.disponible
+          })
+          .eq('id', driver.id);
+          
+        if (error) throw error;
+        toast.success('Conductor actualizado correctamente');
+      } else {
+        // Create new driver
+        const { error } = await supabase
+          .from('drivers')
+          .insert({
+            nombre: driver.nombre,
+            apellido: driver.apellido,
+            numero_celular: driver.numero_celular,
+            placa_vehiculo: driver.placa_vehiculo,
+            modelo_vehiculo: driver.modelo_vehiculo,
+            disponible: driver.disponible || true
+          });
+          
+        if (error) throw error;
+        toast.success('Conductor creado correctamente');
+      }
+      
+      setIsDriverDialogOpen(false);
+      setCurrentDriver(null);
+      await fetchDrivers();
+      
+    } catch (error) {
+      console.error('Error saving driver:', error);
+      toast.error('Error al guardar el conductor');
+    }
+  };
+
+  // Delete a driver
+  const handleDeleteDriver = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      toast.success('Conductor eliminado correctamente');
+      setIsDriverDeleteDialogOpen(false);
+      await fetchDrivers();
+      
+    } catch (error) {
+      console.error('Error deleting driver:', error);
+      toast.error('Error al eliminar el conductor');
+    }
+  };
+
+  // Assign a driver to a booking
+  const assignDriverToBooking = async (bookingId: string, driverId: string) => {
+    try {
+      // First get the driver details
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('id', driverId)
+        .single();
+      
+      if (driverError) throw driverError;
+      
+      if (!driverData) {
+        toast.error('No se encontró el conductor');
+        return;
+      }
+      
+      // Update the booking with driver information
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({
+          id_conductor: driverId,
+          nombre_conductor: `${driverData.nombre} ${driverData.apellido}`,
+          placa_vehiculo: driverData.placa_vehiculo,
+          modelo_vehiculo: driverData.modelo_vehiculo,
+          numero_celular_conductor: driverData.numero_celular
+        })
+        .eq('id', bookingId);
+      
+      if (bookingError) throw bookingError;
+      
+      toast.success('Conductor asignado correctamente');
+      setIsDriverAssignDialogOpen(false);
+      setBookingForDriverAssign(null);
+      await fetchBookings();
+      
+    } catch (error) {
+      console.error('Error assigning driver:', error);
+      toast.error('Error al asignar el conductor');
+    }
+  };
+
+  // Remove driver from a booking
+  const removeDriverFromBooking = async (bookingId: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          id_conductor: null,
+          nombre_conductor: null,
+          placa_vehiculo: null,
+          modelo_vehiculo: null,
+          numero_celular_conductor: null
+        })
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      toast.success('Conductor removido correctamente');
+      await fetchBookings();
+      
+    } catch (error) {
+      console.error('Error removing driver:', error);
+      toast.error('Error al remover el conductor');
+    }
+  };
 
   // Update booking status
   const updateBookingStatus = async (id: string, newStatus: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada') => {
@@ -360,15 +541,15 @@ const AdminPage: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'designada':
-        return 'bg-blue-900/30 text-blue-300 border border-blue-500/30';
+        return 'bg-blue-900/30 text-blue-300 border-blue-500/30';
       case 'en curso':
-        return 'bg-purple-900/30 text-purple-300 border border-purple-500/30';
+        return 'bg-purple-900/30 text-purple-300 border-purple-500/30';
       case 'negada':
-        return 'bg-red-900/30 text-red-300 border border-red-500/30';
+        return 'bg-red-900/30 text-red-300 border-red-500/30';
       case 'realizada':
-        return 'bg-green-900/30 text-green-300 border border-green-500/30';
+        return 'bg-green-900/30 text-green-300 border-green-500/30';
       default:
-        return 'bg-yellow-900/30 text-yellow-300 border border-yellow-500/30';
+        return 'bg-yellow-900/30 text-yellow-300 border-yellow-500/30';
     }
   };
 
@@ -386,6 +567,37 @@ const AdminPage: React.FC = () => {
         return <Clock className="h-3 w-3 mr-1" />;
     }
   };
+
+  // Filter bookings based on search term and filters
+  const filteredBookings = bookings.filter(booking => {
+    // Search term filter
+    const matchesSearch = 
+      booking.userData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.userData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Unassigned filter
+    if (showUnassignedOnly && booking.id_conductor) return false;
+    
+    // Status filter
+    if (filters.status !== 'all' && booking.status !== filters.status) return false;
+    
+    // User email filter
+    if (filters.userEmail && booking.userData.email !== filters.userEmail) return false;
+    
+    // Date range filter
+    if (filters.dateRange.from || filters.dateRange.to) {
+      const bookingDate = new Date(booking.departureDate);
+      
+      if (filters.dateRange.from && bookingDate < filters.dateRange.from) return false;
+      if (filters.dateRange.to && bookingDate > filters.dateRange.to) return false;
+    }
+    
+    return true;
+  });
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-slate-900 p-4 md:p-8">
@@ -466,7 +678,7 @@ const AdminPage: React.FC = () => {
         <Tabs defaultValue="bookings" className="space-y-6">
           <TabsList className="grid grid-cols-2 md:grid-cols-4 md:w-[600px] bg-slate-800/60 border border-blue-500/20">
             <TabsTrigger value="bookings" className="data-[state=active]:bg-blue-800/30 data-[state=active]:text-white">Reservas</TabsTrigger>
-            <TabsTrigger value="vehicles" className="data-[state=active]:bg-blue-800/30 data-[state=active]:text-white">Vehículos</TabsTrigger>
+            <TabsTrigger value="drivers" className="data-[state=active]:bg-blue-800/30 data-[state=active]:text-white">Conductores</TabsTrigger>
             <TabsTrigger value="customers" className="data-[state=active]:bg-blue-800/30 data-[state=active]:text-white">Clientes</TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:bg-blue-800/30 data-[state=active]:text-white">Informes</TabsTrigger>
           </TabsList>
@@ -486,6 +698,19 @@ const AdminPage: React.FC = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={showUnassignedOnly}
+                          onChange={(e) => setShowUnassignedOnly(e.target.checked)}
+                          className="mr-2"
+                        />
+                        Solo sin conductor
+                      </label>
+                    </div>
+                    
                     <Button 
                       variant="outline" 
                       size="icon"
@@ -545,424 +770,4 @@ const AdminPage: React.FC = () => {
                           <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
                             <SelectValue placeholder="Todos los estados" />
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-blue-500/30">
-                            <SelectItem value="all">Todos</SelectItem>
-                            <SelectItem value="pendiente">Pendiente</SelectItem>
-                            <SelectItem value="designada">Designada</SelectItem>
-                            <SelectItem value="en curso">En curso</SelectItem>
-                            <SelectItem value="realizada">Realizada</SelectItem>
-                            <SelectItem value="negada">Negada</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* User filter */}
-                      <div>
-                        <label className="block text-sm text-gray-400 mb-1">Usuario</label>
-                        <Select 
-                          value={filters.userEmail}
-                          onValueChange={(value) => setFilters({...filters, userEmail: value})}
-                        >
-                          <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
-                            <SelectValue placeholder="Todos los usuarios" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-blue-500/30 max-h-[200px]">
-                            <SelectItem value="">Todos</SelectItem>
-                            {uniqueUsers.map(email => (
-                              <SelectItem key={email} value={email}>{email}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center p-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
-                    <p className="text-gray-300">Cargando reservas...</p>
-                  </div>
-                ) : (
-                  <div className="overflow-auto">
-                    <Table className="border-collapse">
-                      <TableCaption className="text-gray-500">Lista de reservas activas</TableCaption>
-                      <TableHeader>
-                        <TableRow className="border-b border-blue-500/20">
-                          <TableHead className="text-gray-300">Cliente</TableHead>
-                          <TableHead className="text-gray-300">Ruta</TableHead>
-                          <TableHead className="text-gray-300">Vehículo</TableHead>
-                          <TableHead className="text-gray-300">Fecha</TableHead>
-                          <TableHead className="text-gray-300">Estado</TableHead>
-                          <TableHead className="text-gray-300">Precio</TableHead>
-                          <TableHead className="text-right text-gray-300">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredBookings.length > 0 ? (
-                          filteredBookings.map((booking) => (
-                            <TableRow key={booking.id} className="border-b border-blue-500/10 hover:bg-blue-900/10">
-                              <TableCell className="text-gray-200">
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{booking.userData.name}</span>
-                                  <span className="text-sm text-gray-400">{booking.userData.phone}</span>
-                                  <span className="text-xs text-gray-500">{booking.userData.email}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-gray-200">
-                                <div className="flex flex-col">
-                                  <span className="flex items-center">
-                                    <MapPin className="h-3 w-3 mr-1 text-blue-400" /> {booking.origin}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <MapPin className="h-3 w-3 mr-1 text-blue-400" fill="currentColor" /> {booking.destination}
-                                  </span>
-                                  {booking.intermediate_stops && booking.intermediate_stops.length > 0 && (
-                                    <div className="ml-4 mt-1">
-                                      <span className="text-xs text-blue-300">Paradas intermedias:</span>
-                                      <ul className="list-disc list-inside text-xs text-gray-400">
-                                        {booking.intermediate_stops.map((stop, idx) => (
-                                          <li key={stop.id || idx}>{stop.placeName}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                  {booking.duration && (
-                                    <span className="text-xs text-gray-400 mt-1">
-                                      <Clock className="h-3 w-3 inline mr-1" /> {booking.duration}
-                                    </span>
-                                  )}
-                                  <a 
-                                    href={generateRouteLink(booking.origin, booking.destination, booking.intermediate_stops)} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-xs flex items-center mt-1 text-blue-400 hover:text-blue-300"
-                                  >
-                                    <ExternalLink size={12} className="mr-1" /> Ver en Google Maps
-                                  </a>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-gray-200">
-                                <div className="flex items-center gap-2">
-                                  <Bus className="h-4 w-4 text-blue-400" />
-                                  <span className="capitalize">{booking.vehicleType}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-gray-200">
-                                <div className="flex flex-col">
-                                  <span className="flex items-center">
-                                    <CalendarRange className="h-3 w-3 mr-1 text-gray-400" /> 
-                                    {formatDate(booking.departureDate)}
-                                  </span>
-                                  <span className="flex items-center">
-                                    <Clock className="h-3 w-3 mr-1 text-gray-400" /> {booking.departureTime}
-                                  </span>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <span className={`px-2 py-1 rounded-full text-xs flex items-center w-fit ${getStatusBadgeClass(booking.status)}`}>
-                                  {getStatusIcon(booking.status)} {booking.status}
-                                </span>
-                              </TableCell>
-                              <TableCell className="font-medium text-gray-200">
-                                ${typeof booking.cost === 'number' ? booking.cost.toFixed(2) : booking.cost}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end items-center space-x-2">
-                                  <Select 
-                                    value={booking.status}
-                                    onValueChange={(value) => updateBookingStatus(
-                                      booking.id, 
-                                      value as 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada'
-                                    )}
-                                  >
-                                    <SelectTrigger className="w-[130px] bg-slate-800/60 border-blue-500/30 text-gray-200">
-                                      <SelectValue placeholder="Cambiar estado" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-slate-800 border-blue-500/30">
-                                      <SelectItem value="pendiente" className="text-yellow-300">Pendiente</SelectItem>
-                                      <SelectItem value="designada" className="text-blue-300">Designada</SelectItem>
-                                      <SelectItem value="en curso" className="text-purple-300">En curso</SelectItem>
-                                      <SelectItem value="realizada" className="text-green-300">Realizada</SelectItem>
-                                      <SelectItem value="negada" className="text-red-300">Negada</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => confirmDelete(booking.id)}
-                                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-8 text-gray-400">
-                              No se encontraron reservas
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="vehicles">
-            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-              <CardHeader>
-                <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Gestión de Vehículos</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Administre la flota de vehículos disponibles
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {['Sedan', 'SUV', 'Van', 'Bus', 'Minibus'].map(vehicleType => (
-                    <Card key={vehicleType} className="bg-slate-800/60 border border-blue-500/20">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-xl text-white">{vehicleType}</CardTitle>
-                          <Bus className="h-6 w-6 text-blue-400" />
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-sm text-gray-300">
-                          <div className="flex justify-between mb-1">
-                            <span>Precio base:</span>
-                            <span className="font-medium">${vehicleType === 'Bus' ? '50.00' : vehicleType === 'Van' ? '45.00' : vehicleType === 'SUV' ? '40.00' : vehicleType === 'Minibus' ? '55.00' : '35.00'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Capacidad:</span>
-                            <span className="font-medium">{vehicleType === 'Bus' ? '35' : vehicleType === 'Van' ? '12' : vehicleType === 'SUV' ? '6' : vehicleType === 'Minibus' ? '20' : '4'} pasajeros</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="customers">
-            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-              <CardHeader>
-                <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Gestión de Clientes</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Clientes registrados en la plataforma
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-blue-500/20">
-                        <TableHead className="text-gray-300">Usuario</TableHead>
-                        <TableHead className="text-gray-300">Email</TableHead>
-                        <TableHead className="text-gray-300">Reservas</TableHead>
-                        <TableHead className="text-gray-300">Total Gastado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {uniqueUsers.length > 0 ? uniqueUsers.map((email) => {
-                        const userBookings = bookings.filter(b => b.userData.email === email);
-                        const userTotalSpent = userBookings
-                          .filter(b => b.status === 'realizada')
-                          .reduce((total, booking) => {
-                            const cost = typeof booking.cost === 'number' ? booking.cost : parseFloat(booking.cost);
-                            return total + (isNaN(cost) ? 0 : cost);
-                          }, 0);
-                        
-                        return (
-                          <TableRow key={email} className="border-b border-blue-500/10 hover:bg-blue-900/10">
-                            <TableCell className="text-gray-200">{userBookings[0]?.userData.name || 'Usuario'}</TableCell>
-                            <TableCell className="text-gray-200">{email}</TableCell>
-                            <TableCell className="text-gray-200">{userBookings.length}</TableCell>
-                            <TableCell className="text-gray-200">${userTotalSpent.toFixed(2)}</TableCell>
-                          </TableRow>
-                        );
-                      }) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-400">
-                            No hay clientes registrados
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="reports">
-            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-              <CardHeader>
-                <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Informes y Estadísticas</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Resumen de actividad y rendimiento
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Reservas por Estado</h3>
-                    <div className="bg-slate-800/60 rounded-lg p-4 border border-blue-500/20">
-                      <div className="space-y-3">
-                        {['pendiente', 'designada', 'en curso', 'realizada', 'negada'].map(status => {
-                          const count = bookings.filter(b => b.status === status).length;
-                          const percentage = totalBookings > 0 ? (count / totalBookings) * 100 : 0;
-                          
-                          return (
-                            <div key={status} className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm capitalize text-gray-300">{status}</span>
-                                <span className="text-sm text-gray-400">{count} ({percentage.toFixed(1)}%)</span>
-                              </div>
-                              <div className="w-full bg-slate-700/50 rounded-full h-2">
-                                <div 
-                                  className={`h-2 rounded-full ${
-                                    status === 'realizada' ? 'bg-green-500/70' : 
-                                    status === 'negada' ? 'bg-red-500/70' : 
-                                    status === 'designada' ? 'bg-blue-500/70' : 
-                                    status === 'en curso' ? 'bg-purple-500/70' : 
-                                    'bg-yellow-500/70'
-                                  }`}
-                                  style={{ width: `${percentage}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium text-white mb-4">Vehículos más Usados</h3>
-                    <div className="bg-slate-800/60 rounded-lg p-4 border border-blue-500/20">
-                      <div className="space-y-3">
-                        {(() => {
-                          // Count vehicle types
-                          const vehicleCounts: Record<string, number> = {};
-                          bookings.forEach(booking => {
-                            if (!vehicleCounts[booking.vehicleType]) {
-                              vehicleCounts[booking.vehicleType] = 0;
-                            }
-                            vehicleCounts[booking.vehicleType]++;
-                          });
-                          
-                          // Convert to array and sort
-                          const sortedVehicles = Object.entries(vehicleCounts)
-                            .map(([type, count]) => ({ type, count }))
-                            .sort((a, b) => b.count - a.count);
-                          
-                          if (sortedVehicles.length === 0) {
-                            return (
-                              <div className="text-center py-8 text-gray-400">
-                                No hay datos disponibles
-                              </div>
-                            );
-                          }
-                          
-                          return sortedVehicles.map(({ type, count }) => {
-                            const percentage = totalBookings > 0 ? (count / totalBookings) * 100 : 0;
-                            
-                            return (
-                              <div key={type} className="space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm capitalize text-gray-300">{type}</span>
-                                  <span className="text-sm text-gray-400">{count} ({percentage.toFixed(1)}%)</span>
-                                </div>
-                                <div className="w-full bg-slate-700/50 rounded-full h-2">
-                                  <div 
-                                    className="h-2 rounded-full bg-blue-500/70"
-                                    style={{ width: `${percentage}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="justify-center pt-4 border-t border-blue-500/20">
-                <Button 
-                  onClick={() => {
-                    const csvContent = [
-                      ["Usuario", "Email", "Origen", "Destino", "Vehículo", "Fecha", "Estado", "Costo"].join(","),
-                      ...bookings.map(b => [
-                        b.userData.name,
-                        b.userData.email,
-                        b.origin,
-                        b.destination,
-                        b.vehicleType,
-                        formatDate(b.departureDate),
-                        b.status,
-                        b.cost
-                      ].join(","))
-                    ].join("\n");
-                    
-                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement("a");
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", `reservas_${new Date().toLocaleDateString()}.csv`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    toast.success("Reporte descargado correctamente");
-                  }}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-900/20 border border-blue-500/50"
-                >
-                  Descargar Reporte CSV
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-slate-800 border-red-500/30">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">¿Eliminar reserva?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
-              Esta acción no se puede deshacer. La reserva será eliminada permanentemente del sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              className="bg-red-900/70 hover:bg-red-800 text-white border border-red-500/50"
-              onClick={() => {
-                if (bookingToDelete) {
-                  handleDeleteBooking(bookingToDelete);
-                }
-              }}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-};
-
-export default AdminPage;
+                          <SelectContent className="bg-slate-
