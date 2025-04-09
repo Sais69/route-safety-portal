@@ -111,7 +111,7 @@ const MapSection: React.FC<MapSectionProps> = ({
           {
             "featureType": "poi",
             "elementType": "geometry",
-            "stylers": [{"color": "#0c4152"}, {"lightness": 5}]
+            "stylers": [{\"color\": "#0c4152"}, {"lightness": 5}]
           },
           {
             "featureType": "road.highway",
@@ -896,4 +896,3 @@ const MapSection: React.FC<MapSectionProps> = ({
             </div>
           )}
         </div>
-      </
