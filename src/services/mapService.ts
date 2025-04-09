@@ -1,4 +1,3 @@
-
 import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
@@ -16,14 +15,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     mapTrackingDiv.id = 'google-maps-loading-status';
     document.body.appendChild(mapTrackingDiv);
 
-    // Check if we have a valid API key
-    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 20) {
-      console.error('No valid Google Maps API key available. Key length:', GOOGLE_MAPS_API_KEY ? GOOGLE_MAPS_API_KEY.length : 0);
-      reject(new Error('Google Maps API key not available or invalid'));
-      return;
-    }
-
-    console.log('Attempting to load Google Maps with API key (length: ' + GOOGLE_MAPS_API_KEY.length + ')');
+    console.log('Loading Google Maps with API key:', GOOGLE_MAPS_API_KEY.substring(0, 5) + '...');
 
     try {
       // Remove any existing script tags to prevent duplicates
@@ -51,7 +43,6 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       // Setup event handlers for success and failure
       script.onload = () => {
         console.log('Google Maps script tag loaded (onload event)');
-        // Note: We don't resolve here, we wait for the callback
         
         // Sometimes the callback might not get called, so we'll set a backup timer
         setTimeout(() => {
@@ -67,7 +58,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
             }
             resolve();
           }
-        }, 3000);
+        }, 1000);
       };
 
       script.onerror = (error) => {
@@ -90,7 +81,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
           }
           reject(new Error('Google Maps API initialization timed out'));
         }
-      }, 20000); // 20 seconds timeout
+      }, 10000); // 10 seconds timeout
     } catch (error) {
       console.error('Error setting up Google Maps script:', error);
       if (document.body.contains(mapTrackingDiv)) {

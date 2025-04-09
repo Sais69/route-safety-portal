@@ -1,8 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { GOOGLE_MAPS_API_KEY, initializeApiKeys, storeGoogleMapsApiKey } from '@/constants';
-import { supabase } from '@/integrations/supabase/client';
+import { GOOGLE_MAPS_API_KEY, initializeApiKeys } from '@/constants';
 
 const useMapSection = () => {
   const [isReloadingMap, setIsReloadingMap] = useState(false);
@@ -15,39 +14,13 @@ const useMapSection = () => {
     return (Date.now() - lastApiKeyUpdate) < 30000;
   }, [lastApiKeyUpdate]);
 
-  // Attempt to load the API key from database on mount
-  useEffect(() => {
-    const loadDbApiKey = async () => {
-      try {
-        // Use generic query to avoid typing issues with the newly created table
-        const { data, error } = await supabase
-          .from('app_settings')
-          .select('*')
-          .eq('key', 'GOOGLE_MAPS_API_KEY')
-          .single();
-        
-        if (!error && data) {
-          console.log('Retrieved API key from database on init');
-          setIsDbKeyLoaded(true);
-        }
-      } catch (err) {
-        console.warn('Could not check for API key in database:', err);
-      }
-    };
-    
-    loadDbApiKey();
-  }, []);
-
-  // Initialize the API key on component mount if needed
+  // Attempt to load the API key on mount
   useEffect(() => {
     const loadApiKey = async () => {
-      // Only attempt to load if we haven't recently updated
-      if (!checkApiKey() && !hasRecentlyUpdated() && !isInitializing) {
-        console.log("No valid API key found on initial load, attempting to load one");
-        await handleReloadMap();
-      }
+      // We already have a valid API key set statically now
+      setIsDbKeyLoaded(true);
     };
-
+    
     loadApiKey();
   }, []);
 
@@ -63,30 +36,10 @@ const useMapSection = () => {
     setIsInitializing(true);
     
     try {
-      // Try to reinitialize the API key first
-      toast.info("Obteniendo API key de Google Maps...");
-      
-      const success = await initializeApiKeys();
-      
-      if (success) {
-        setLastApiKeyUpdate(Date.now());
-        toast.success("API key actualizada correctamente. Recargando mapa...");
-        console.log("API key initialization successful");
-        
-        // Si obtuvimos la key de la función Edge pero no está en la base de datos,
-        // intentamos guardarla para futuros usos
-        if (!isDbKeyLoaded && GOOGLE_MAPS_API_KEY) {
-          console.log("Storing API key in database for future use");
-          const stored = await storeGoogleMapsApiKey(GOOGLE_MAPS_API_KEY);
-          if (stored) {
-            setIsDbKeyLoaded(true);
-            console.log("API key stored in database successfully");
-          }
-        }
-      } else {
-        toast.error("No se pudo obtener la API key. Reintentando cargar el mapa...");
-        console.error("Failed to initialize API key");
-      }
+      // Key is already set statically now
+      setLastApiKeyUpdate(Date.now());
+      toast.success("Mapa inicializado correctamente. Recargando...");
+      console.log("Using API key:", GOOGLE_MAPS_API_KEY.substring(0, 5) + '...');
       
       // Short timeout to ensure cleanup before recreating
       setTimeout(() => {
@@ -100,7 +53,7 @@ const useMapSection = () => {
     } finally {
       setIsInitializing(false);
     }
-  }, [isInitializing, isReloadingMap, hasRecentlyUpdated, isDbKeyLoaded]);
+  }, [isInitializing, isReloadingMap, hasRecentlyUpdated]);
 
   // Function to check if we have a valid API key
   const checkApiKey = useCallback(() => {

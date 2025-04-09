@@ -109,6 +109,9 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     // Show toast
     toast.info('Recargando mapa. Por favor espere...');
     
+    // Verify we have the API key
+    console.log('API Key for reload:', GOOGLE_MAPS_API_KEY ? 'Available (length: ' + GOOGLE_MAPS_API_KEY.length + ')' : 'Not available');
+    
     // Small timeout to show loading state
     setTimeout(() => {
       onReloadMap();
@@ -121,6 +124,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   // Full page reload for persistent issues
   const handleFullReload = () => {
     toast.info('Recargando la página completa...');
+    console.log('Performing full page reload with API key:', GOOGLE_MAPS_API_KEY ? 'Available' : 'Not available');
     localStorage.setItem('mapReloadAttempt', (parseInt(localStorage.getItem('mapReloadAttempt') || '0') + 1).toString());
     setTimeout(() => window.location.reload(), 500);
   };
