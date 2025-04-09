@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +13,7 @@ import MyBookings from "./pages/MyBookings";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { toast } from "sonner";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -71,15 +72,12 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Add this import at the top
-import { toast } from "sonner";
-
 function AppRoutes() {
   const { user, isAdmin } = useAuth();
   const location = useLocation();
 
   // Debug log user state on route changes
-  useEffect(() => {
+  React.useEffect(() => {
     console.log("Route changed. User:", user?.email, "isAdmin:", isAdmin);
   }, [location.pathname, user, isAdmin]);
 
@@ -120,15 +118,15 @@ function AppRoutes() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
             <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 }
