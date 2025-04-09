@@ -1,4 +1,4 @@
-import { GOOGLE_MAPS_API_KEY } from "@/constants"
+import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
 export const loadGoogleMapsScript = (): Promise<void> => {
