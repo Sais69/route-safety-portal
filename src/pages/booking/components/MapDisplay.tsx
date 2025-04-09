@@ -48,24 +48,26 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
               window.google.maps.event.trigger(mapRef.current, 'resize');
               
               // Add a debug marker to the center of the map
-              if (window.google.maps.Map && mapRef.current.__gm && mapRef.current.__gm.get) {
-                const mapInstance = mapRef.current.__gm.get('map');
+              try {
+                // Get map instance directly from the Google Maps API
+                const mapInstance = google.maps.Map.prototype.getMap ? 
+                  google.maps.Map.prototype.getMap.call(mapRef.current) : 
+                  null;
+                  
                 if (mapInstance) {
                   // Force center to Quito and add a marker
                   const center = { lat: -0.1807, lng: -78.4678 };
                   mapInstance.setCenter(center);
                   
                   // Create a debug marker
-                  try {
-                    new window.google.maps.Marker({
-                      position: center,
-                      map: mapInstance,
-                      title: "Debug marker - Map center"
-                    });
-                  } catch (e) {
-                    console.error("Error adding debug marker:", e);
-                  }
+                  new window.google.maps.Marker({
+                    position: center,
+                    map: mapInstance,
+                    title: "Debug marker - Map center"
+                  });
                 }
+              } catch (e) {
+                console.error("Error adding debug marker:", e);
               }
             }
           }, 100);
@@ -93,16 +95,21 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         console.log('Forcing map refresh (manual timer)');
         window.google.maps.event.trigger(mapRef.current, 'resize');
         
-        // Try to access the actual map instance
-        if (mapRef.current.__gm && mapRef.current.__gm.get) {
-          try {
-            const mapInstance = mapRef.current.__gm.get('map');
+        // Try to access the map instance using DOM traversal (safer approach)
+        try {
+          // Find the first map instance in this container
+          const mapDiv = mapRef.current.querySelector('div[aria-roledescription="map"]');
+          if (mapDiv) {
+            const mapInstance = google.maps.Map.prototype.getMap ? 
+              google.maps.Map.prototype.getMap.call(mapDiv) : 
+              null;
+            
             if (mapInstance) {
               mapInstance.setZoom(mapInstance.getZoom() || 11);
             }
-          } catch (e) {
-            console.error("Error refreshing map:", e);
           }
+        } catch (e) {
+          console.error("Error refreshing map:", e);
         }
         
         setManualRefreshCount(prev => prev + 1);
@@ -147,10 +154,14 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
           if (window.google?.maps?.event && mapRef.current) {
             window.google.maps.event.trigger(mapRef.current, 'resize');
             
-            // Try to access the map instance directly
-            if (mapRef.current.__gm && mapRef.current.__gm.get) {
-              try {
-                const mapInstance = mapRef.current.__gm.get('map');
+            // Try to access the map instance using DOM traversal
+            try {
+              const mapDiv = mapRef.current.querySelector('div[aria-roledescription="map"]');
+              if (mapDiv) {
+                const mapInstance = google.maps.Map.prototype.getMap ? 
+                  google.maps.Map.prototype.getMap.call(mapDiv) : 
+                  null;
+                  
                 if (mapInstance) {
                   // Force a zoom change to trigger redraw
                   const currentZoom = mapInstance.getZoom();
@@ -158,9 +169,9 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
                     mapInstance.setZoom(currentZoom);
                   }
                 }
-              } catch (e) {
-                console.warn("Error accessing map instance:", e);
               }
+            } catch (e) {
+              console.warn("Error accessing map instance:", e);
             }
           }
         }, time);
