@@ -20,6 +20,7 @@ export type Database = {
           distance: number
           duration: string | null
           id: string
+          id_conductor: string | null
           intermediate_stops: Json[] | null
           origin: string
           origin_coords: Json | null
@@ -42,6 +43,7 @@ export type Database = {
           distance: number
           duration?: string | null
           id?: string
+          id_conductor?: string | null
           intermediate_stops?: Json[] | null
           origin: string
           origin_coords?: Json | null
@@ -64,6 +66,7 @@ export type Database = {
           distance?: number
           duration?: string | null
           id?: string
+          id_conductor?: string | null
           intermediate_stops?: Json[] | null
           origin?: string
           origin_coords?: Json | null
@@ -75,6 +78,47 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vehicle_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_id_conductor_fkey"
+            columns: ["id_conductor"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drivers: {
+        Row: {
+          apellido: string
+          created_at: string
+          disponible: boolean
+          id: string
+          modelo_vehiculo: string | null
+          nombre: string
+          numero_celular: string
+          placa_vehiculo: string
+        }
+        Insert: {
+          apellido: string
+          created_at?: string
+          disponible?: boolean
+          id?: string
+          modelo_vehiculo?: string | null
+          nombre: string
+          numero_celular: string
+          placa_vehiculo: string
+        }
+        Update: {
+          apellido?: string
+          created_at?: string
+          disponible?: boolean
+          id?: string
+          modelo_vehiculo?: string | null
+          nombre?: string
+          numero_celular?: string
+          placa_vehiculo?: string
         }
         Relationships: []
       }
