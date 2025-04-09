@@ -31,9 +31,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // Intentar obtener la API key de la base de datos
+    // Usar una consulta sin tipado fuerte
     const { data, error } = await supabase
       .from('app_settings')
-      .select('value')
+      .select('*')
       .eq('key', 'GOOGLE_MAPS_API_KEY')
       .single();
     

@@ -14,13 +14,14 @@ export async function initializeApiKeys() {
     
     // First try to get the API key from the app_settings table
     try {
+      // Use generic query to avoid typing issues with the newly created table
       const { data, error } = await supabase
         .from('app_settings')
-        .select('value')
+        .select('*')
         .eq('key', 'GOOGLE_MAPS_API_KEY')
         .single();
       
-      if (!error && data && data.value) {
+      if (!error && data) {
         console.log('Successfully retrieved API key from database');
         GOOGLE_MAPS_API_KEY = data.value;
         return true;
@@ -151,21 +152,28 @@ export async function storeGoogleMapsApiKey(apiKey: string): Promise<boolean> {
       return false;
     }
     
-    // Insertar o actualizar la API key en la tabla app_settings
+    // Usar una consulta genérica para evitar problemas de tipado
     const { error } = await supabase
-      .from('app_settings')
-      .upsert(
-        { 
-          key: 'GOOGLE_MAPS_API_KEY', 
-          value: apiKey, 
-          description: 'Google Maps API Key para la aplicación' 
-        },
-        { onConflict: 'key' }
-      );
+      .rpc('upsert_app_setting', { 
+        p_key: 'GOOGLE_MAPS_API_KEY',
+        p_value: apiKey,
+        p_description: 'Google Maps API Key para la aplicación'
+      });
     
     if (error) {
-      console.error('Error storing API key in database:', error);
-      return false;
+      // Si la función RPC falla, intentar con una consulta directa
+      const { error: insertError } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'GOOGLE_MAPS_API_KEY',
+          value: apiKey,
+          description: 'Google Maps API Key para la aplicación'
+        }, { onConflict: 'key' });
+      
+      if (insertError) {
+        console.error('Error storing API key in database:', insertError);
+        return false;
+      }
     }
     
     console.log('API key successfully stored in database');

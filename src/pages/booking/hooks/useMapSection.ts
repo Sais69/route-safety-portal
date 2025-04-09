@@ -19,13 +19,14 @@ const useMapSection = () => {
   useEffect(() => {
     const loadDbApiKey = async () => {
       try {
+        // Use generic query to avoid typing issues with the newly created table
         const { data, error } = await supabase
           .from('app_settings')
-          .select('value')
+          .select('*')
           .eq('key', 'GOOGLE_MAPS_API_KEY')
           .single();
         
-        if (!error && data && data.value) {
+        if (!error && data) {
           console.log('Retrieved API key from database on init');
           setIsDbKeyLoaded(true);
         }
