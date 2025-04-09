@@ -18,12 +18,17 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
 
-  const from = location.state?.from?.pathname || (isAdmin ? "/admin" : "/booking");
+  const from = location.state?.from?.pathname || "/";
 
-  // Redirect if already logged in
+  // Redirect if already logged in - fixed to respect admin status
   useEffect(() => {
+    console.log("Login page - user:", user?.email, "isAdmin:", isAdmin);
     if (user) {
-      navigate(isAdmin ? "/admin" : from, { replace: true });
+      if (isAdmin) {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate(from === "/" ? "/booking" : from, { replace: true });
+      }
     }
   }, [user, isAdmin, navigate, from]);
 
@@ -39,9 +44,8 @@ const Login = () => {
     try {
       setFormSubmitting(true);
       await signIn(email, password);
-      // No need to navigate here - will be handled by the effect when user is updated
+      // Redirection is handled by the effect
     } catch (error) {
-      // Error is handled in the signIn function
       console.error("Error en el inicio de sesión:", error);
     } finally {
       setFormSubmitting(false);

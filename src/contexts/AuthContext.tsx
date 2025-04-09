@@ -24,27 +24,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check if user is admin
+  // Check if user is admin - fixed logic
   const checkAdminStatus = (currentUser: User | null) => {
     if (!currentUser) return false;
     
-    return currentUser.email?.endsWith('@admin.com') || 
-           currentUser.user_metadata?.first_name === 'Trayectotec';
+    // Admin check logic
+    const email = currentUser.email?.toLowerCase() || '';
+    const firstName = currentUser.user_metadata?.first_name || '';
+    
+    return email.endsWith('@admin.com') || firstName === 'Trayectotec';
   };
 
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.email);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        setIsAdmin(checkAdminStatus(currentSession?.user ?? null));
+        const adminStatus = checkAdminStatus(currentSession?.user ?? null);
+        setIsAdmin(adminStatus);
 
         // Store authentication state in localStorage for other components
         if (currentSession) {
           localStorage.setItem('isAuthenticated', 'true');
           localStorage.setItem('userEmail', currentSession.user.email || '');
-          localStorage.setItem('isAdmin', checkAdminStatus(currentSession.user) ? 'true' : 'false');
+          localStorage.setItem('isAdmin', adminStatus ? 'true' : 'false');
 
           // Only fetch additional user data if needed
           if (event === 'SIGNED_IN') {
@@ -53,9 +58,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }, 0);
           }
         } else {
+          // Clear ALL auth data from localStorage when session is null
           localStorage.removeItem('isAuthenticated');
           localStorage.removeItem('userEmail');
           localStorage.removeItem('isAdmin');
+          
           if (event === 'SIGNED_OUT') {
             setTimeout(() => {
               toast.info("Sesión cerrada");
@@ -67,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Initial session check:", currentSession?.user?.email);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setIsAdmin(checkAdminStatus(currentSession?.user ?? null));
@@ -85,6 +93,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (error) {
         throw error;
+      }
+      
+      // Getting the session right after login to ensure we have the latest data
+      const { data } = await supabase.auth.getSession();
+      const adminStatus = checkAdminStatus(data.session?.user ?? null);
+      
+      // Update the admin status
+      setIsAdmin(adminStatus);
+      if (adminStatus) {
+        console.log("Admin user logged in");
       }
     } catch (error: any) {
       toast.error(error.message || 'Error al iniciar sesión');
@@ -126,6 +144,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         throw error;
       }
+      
+      // Clear ALL auth data
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
+      
+      // Clear localStorage
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('isAdmin');
+      
     } catch (error: any) {
       toast.error(error.message || 'Error al cerrar sesión');
     } finally {

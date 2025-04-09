@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Bus, Menu, X, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -21,8 +22,14 @@ const Header = () => {
   }, []);
   
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+      navigate('/');
+      toast.success("Has cerrado sesión correctamente");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Error al cerrar sesión");
+    }
   };
 
   // Close mobile menu when route changes
@@ -54,6 +61,8 @@ const Header = () => {
               </a>
             </>
           )}
+          
+          {/* User-specific links */}
           {user && !isAdmin && (
             <>
               <Link to="/booking" className="text-gray-300 hover:text-blue-400 transition-colors">
@@ -64,11 +73,14 @@ const Header = () => {
               </Link>
             </>
           )}
+          
           {location.pathname === '/' && (
             <a href="#about" className="text-gray-300 hover:text-blue-400 transition-colors">
               Nosotros
             </a>
           )}
+          
+          {/* Admin-specific link */}
           {user && isAdmin && (
             <Link 
               to="/admin" 
@@ -84,7 +96,10 @@ const Header = () => {
         <div className="hidden md:flex items-center space-x-4">
           {user ? (
             <>
-              <span className="text-gray-300">Hola, {user.user_metadata?.first_name || 'Usuario'}</span>
+              <span className="text-gray-300">
+                Hola, {user.user_metadata?.first_name || 'Usuario'}
+                {isAdmin && <span className="ml-1 text-blue-400">(Admin)</span>}
+              </span>
               <Button 
                 variant="outline" 
                 className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
@@ -142,6 +157,8 @@ const Header = () => {
                 </a>
               </>
             )}
+            
+            {/* User-specific mobile links */}
             {user && !isAdmin && (
               <>
                 <Link 
@@ -158,6 +175,7 @@ const Header = () => {
                 </Link>
               </>
             )}
+            
             {location.pathname === '/' && (
               <a 
                 href="#about" 
@@ -166,6 +184,8 @@ const Header = () => {
                 Nosotros
               </a>
             )}
+            
+            {/* Admin-specific mobile link */}
             {user && isAdmin && (
               <Link 
                 to="/admin" 
@@ -175,10 +195,14 @@ const Header = () => {
                 Panel Admin
               </Link>
             )}
+            
             <div className="flex flex-col space-y-2 pt-2 border-t border-blue-900/30">
               {user ? (
                 <>
-                  <span className="text-gray-300 py-2">Hola, {user.user_metadata?.first_name || 'Usuario'}</span>
+                  <span className="text-gray-300 py-2">
+                    Hola, {user.user_metadata?.first_name || 'Usuario'}
+                    {isAdmin && <span className="ml-1 text-blue-400">(Admin)</span>}
+                  </span>
                   <Button 
                     variant="outline" 
                     className="border-blue-500/50 text-blue-400 hover:bg-blue-500/10"

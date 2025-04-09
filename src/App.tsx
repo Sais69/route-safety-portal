@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,16 +33,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!user) {
+    // Save the attempted URL for redirection after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   return <>{children}</>;
 };
 
-// Admin Route Component
+// Admin Route Component with fixed logic
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, isAdmin } = useAuth();
   const location = useLocation();
+  
+  console.log("AdminRoute check - isAdmin:", isAdmin, "user:", user?.email);
   
   // Show loading state
   if (isLoading) {
@@ -55,14 +58,31 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   // Check if user is logged in and is admin
-  if (!user || !isAdmin) {
+  if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  
+  if (!isAdmin) {
+    console.log("User is not admin, redirecting to home");
+    toast.error("No tienes permisos para acceder a esta página");
+    return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
 };
 
+// Add this import at the top
+import { toast } from "sonner";
+
 function AppRoutes() {
+  const { user, isAdmin } = useAuth();
+  const location = useLocation();
+
+  // Debug log user state on route changes
+  useEffect(() => {
+    console.log("Route changed. User:", user?.email, "isAdmin:", isAdmin);
+  }, [location.pathname, user, isAdmin]);
+
   return (
     <Routes>
       <Route path="/" element={<Index />} />
