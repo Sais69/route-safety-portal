@@ -7,18 +7,9 @@ import {
 } from '@/services/mapService';
 import BookingHeader from './BookingHeader';
 import MapSection from './MapSection';
-// Fix the import to use named import instead of default import
 import { BookingForm } from './BookingForm';
 import { toast } from 'sonner';
-
-// Use direct import for Google Maps types
-// The .d.ts file provides types without needing an import
-
-interface Stop {
-  id: string;
-  placeName: string;
-  location: google.maps.LatLngLiteral;
-}
+import { Stop } from './types/map';
 
 const BookingPage: React.FC = () => {
   // Map related states

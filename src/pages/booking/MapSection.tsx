@@ -1,20 +1,17 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from "@/components/ui/use-toast";
-import { toast } from 'sonner';
 
 // Import sub-components
-import MapInput from './components/MapInput';
-import IntermediateStopInput from './components/IntermediateStopInput';
-import StopsList from './components/StopsList';
 import MapDisplay from './components/MapDisplay';
 import RouteInfo from './components/RouteInfo';
+import MapForm from './components/MapForm';
 
 // Import custom hooks
 import useGoogleMaps from './hooks/useGoogleMaps';
 import useMapMarkers from './hooks/useMapMarkers';
 import usePlacesAutocomplete from './hooks/usePlacesAutocomplete';
+import useMapSection from './hooks/useMapSection';
 
 interface MapSectionProps {
   origin: google.maps.LatLngLiteral | null;
@@ -63,12 +60,14 @@ const MapSection: React.FC<MapSectionProps> = ({
   calculateRoute,
   duration
 }) => {
+  // Create refs for input elements and map container
   const mapRef = useRef<HTMLDivElement>(null);
   const originInputRef = useRef<HTMLInputElement>(null);
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const newStopInputRef = useRef<HTMLInputElement>(null);
-  const { toast: uiToast } = useToast();
-  const [isReloadingMap, setIsReloadingMap] = useState(false);
+  
+  // State for handling map reloading
+  const { isReloadingMap, handleReloadMap } = useMapSection();
 
   // Use custom hooks
   const {
@@ -80,12 +79,9 @@ const MapSection: React.FC<MapSectionProps> = ({
   } = useGoogleMaps(mapRef, isReloadingMap);
 
   const {
-    originMarker,
-    destinationMarker,
-    stopMarkers,
-    setStopMarkers,
     updateMarkersForEditing,
-    createOrUpdateMarker
+    createOrUpdateMarker,
+    stopMarkers
   } = useMapMarkers({
     map,
     isEditingMarkers,
@@ -116,41 +112,18 @@ const MapSection: React.FC<MapSectionProps> = ({
     setIntermediateStops
   });
 
-  // Function to reload the map if there are issues
-  const handleReloadMap = () => {
-    setIsReloadingMap(true);
-    setMapInitError(null);
-    
-    // Clean up markers
-    if (originMarker) originMarker.setMap(null);
-    if (destinationMarker) destinationMarker.setMap(null);
-    stopMarkers.forEach(marker => marker.setMap(null));
-    
-    // Short timeout to ensure cleanup before recreating
-    setTimeout(() => {
-      setIsReloadingMap(false);
-      toast("Recargando mapa. Por favor espere...");
-    }, 500);
-  };
-
   // Toggle marker edit mode
   const toggleMarkerEditMode = () => {
     setIsEditingMarkers(!isEditingMarkers);
-    if (!isEditingMarkers) {
-      toast("Modo de edición activado. Puedes arrastrar los marcadores para ajustar las ubicaciones.");
-      updateMarkersForEditing(true);
-    } else {
-      updateMarkersForEditing(false);
-      toast("Modo de edición desactivado.");
-    }
+    updateMarkersForEditing(!isEditingMarkers);
   };
 
   // Initialize place autocomplete with error handling
-  useEffect(() => {
+  React.useEffect(() => {
     if (!window.google || !map) return;
 
     try {
-      // Setup autocomplete for origin, destination, and new stop input fields
+      // Setup autocomplete for origin and destination inputs
       if (originInputRef.current) {
         setupPlaceAutocomplete(originInputRef.current, (place) => {
           if (!place.geometry) {
@@ -188,15 +161,11 @@ const MapSection: React.FC<MapSectionProps> = ({
       }
     } catch (error) {
       console.error("Error setting up place autocomplete:", error);
-      uiToast({
-        title: "Error",
-        description: "Error al configurar la búsqueda de lugares",
-      });
     }
   }, [map, setOrigin, setOriginPlace, setDestination, setDestinationPlace]);
 
   // Calculate route on origin or destination change with error handling
-  useEffect(() => {
+  React.useEffect(() => {
     if (!origin || !destination) return;
     
     // Don't recalculate if map isn't loaded yet, we'll handle this elsewhere
@@ -222,10 +191,7 @@ const MapSection: React.FC<MapSectionProps> = ({
           updateMarkers();
         },
         () => {
-          uiToast({
-            title: "Error al calcular la ruta",
-            description: "No se pudo encontrar una ruta con los puntos especificados.",
-          });
+          console.error("Error calculating route");
         }
       );
     }, 200);
@@ -247,11 +213,6 @@ const MapSection: React.FC<MapSectionProps> = ({
     
     // Update intermediate stop markers
     if (map) {
-      // Clean up old stop markers
-      stopMarkers.forEach(marker => marker.setMap(null));
-      setStopMarkers([]);
-      
-      // Create new markers for each stop
       intermediateStops.forEach(stop => {
         createOrUpdateMarker('stop', stop.location, stop.placeName, stop.id);
       });
@@ -267,45 +228,23 @@ const MapSection: React.FC<MapSectionProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
-        <div className="grid gap-4">
-          <MapInput
-            id="origin-input"
-            placeholder="Origen"
-            value={originPlace}
-            onChange={setOriginPlace}
-            inputRef={originInputRef}
-          />
-          <MapInput
-            id="destination-input"
-            placeholder="Destino"
-            value={destinationPlace}
-            onChange={setDestinationPlace}
-            inputRef={destinationInputRef}
-          />
-        </div>
-
-        <IntermediateStopInput
-          value={newStopName}
-          onChange={handleNewStopInputChange}
+        <MapForm
+          originPlace={originPlace}
+          destinationPlace={destinationPlace}
+          setOriginPlace={setOriginPlace}
+          setDestinationPlace={setDestinationPlace}
+          newStopName={newStopName}
+          onNewStopInputChange={handleNewStopInputChange}
           onAddStop={addIntermediateStop}
-          inputRef={newStopInputRef}
-          onBlur={() => {
-            // Delay hiding suggestions to allow click events on the suggestions
-            setTimeout(() => setShowSuggestions(false), 200);
-          }}
-          onFocus={() => {
-            if (newStopName.length > 2) {
-              setShowSuggestions(true);
-            }
-          }}
-          suggestions={suggestions}
           showSuggestions={showSuggestions}
+          suggestions={suggestions}
           onSelectSuggestion={selectSuggestion}
-        />
-
-        <StopsList
-          stops={intermediateStops}
+          intermediateStops={intermediateStops}
           onRemoveStop={(id) => removeIntermediateStop(id, stopMarkers)}
+          originInputRef={originInputRef}
+          destinationInputRef={destinationInputRef}
+          newStopInputRef={newStopInputRef}
+          setShowSuggestions={setShowSuggestions}
         />
 
         <MapDisplay

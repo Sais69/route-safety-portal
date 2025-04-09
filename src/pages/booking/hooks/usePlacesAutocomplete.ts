@@ -1,7 +1,7 @@
-
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from "@/components/ui/use-toast";
+import { Stop } from '../types/map';
 
 interface UsePlacesAutocompleteProps {
   map: google.maps.Map | null;
@@ -11,12 +11,6 @@ interface UsePlacesAutocompleteProps {
   setOriginPlace: (place: string) => void;
   setDestinationPlace: (place: string) => void;
   setIntermediateStops: React.Dispatch<React.SetStateAction<Stop[]>>;
-}
-
-interface Stop {
-  id: string;
-  placeName: string;
-  location: google.maps.LatLngLiteral;
 }
 
 export const usePlacesAutocomplete = ({

@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from 'react';
+import { Stop } from '../types/map';
 
 interface UseMapMarkersProps {
   map: google.maps.Map | null;
@@ -9,12 +9,6 @@ interface UseMapMarkersProps {
   setOriginPlace: (place: string) => void;
   setDestinationPlace: (place: string) => void;
   setIntermediateStops: React.Dispatch<React.SetStateAction<Stop[]>>;
-}
-
-interface Stop {
-  id: string;
-  placeName: string;
-  location: google.maps.LatLngLiteral;
 }
 
 export const useMapMarkers = ({
