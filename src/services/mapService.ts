@@ -1,3 +1,4 @@
+
 import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
@@ -23,7 +24,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       existingScripts.forEach(script => script.remove());
 
       const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap&v=weekly`;
       script.async = true;
       script.defer = true;
       
@@ -273,6 +274,9 @@ export const createOrGetMapInstance = async (
       
       // Create a new map with error handling
       try {
+        // Create map instance (force standard option to avoid rendering issues)
+        mapOptions.mapTypeId = google.maps.MapTypeId.ROADMAP;
+        
         const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
         mapInstances[mapId] = newMap;
         
@@ -280,8 +284,17 @@ export const createOrGetMapInstance = async (
         const checkMapLoaded = () => {
           try {
             if (newMap && newMap.getDiv() && newMap.getDiv().offsetWidth > 0) {
+              // Force map to render with a trigger
+              google.maps.event.trigger(newMap, 'resize');
+              
               console.log('Map instance created and rendered successfully with dimensions:', 
                 newMap.getDiv().offsetWidth, 'x', newMap.getDiv().offsetHeight);
+              
+              // Add a listener to detect when map tiles are loaded
+              google.maps.event.addListenerOnce(newMap, 'tilesloaded', () => {
+                console.log('Map tiles loaded successfully');
+              });
+              
               resolve(newMap);
             } else {
               console.log('Waiting for map to render...');

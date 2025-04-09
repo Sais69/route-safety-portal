@@ -25,6 +25,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   const [isMapVisible, setIsMapVisible] = useState(false);
   const [isContainerReady, setIsContainerReady] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
+  const [manualRefreshCount, setManualRefreshCount] = useState(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const hasApiKey = Boolean(GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.length > 20);
 
@@ -45,6 +46,27 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
             if (window.google && window.google.maps && mapRef.current) {
               console.log('Map is visible - triggering resize event');
               window.google.maps.event.trigger(mapRef.current, 'resize');
+              
+              // Add a debug marker to the center of the map
+              if (window.google.maps.Map && mapRef.current.__gm && mapRef.current.__gm.get) {
+                const mapInstance = mapRef.current.__gm.get('map');
+                if (mapInstance) {
+                  // Force center to Quito and add a marker
+                  const center = { lat: -0.1807, lng: -78.4678 };
+                  mapInstance.setCenter(center);
+                  
+                  // Create a debug marker
+                  try {
+                    new window.google.maps.Marker({
+                      position: center,
+                      map: mapInstance,
+                      title: "Debug marker - Map center"
+                    });
+                  } catch (e) {
+                    console.error("Error adding debug marker:", e);
+                  }
+                }
+              }
             }
           }, 100);
         }
@@ -60,6 +82,35 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
       }
     };
   }, [mapRef.current]);
+
+  // Effect to force manual refresh of map if it appears gray
+  useEffect(() => {
+    if (!mapRef.current || !isMapVisible || !window.google || !window.google.maps) return;
+    
+    // Schedule periodic attempts to refresh the map
+    const refreshTimer = setTimeout(() => {
+      if (window.google && window.google.maps) {
+        console.log('Forcing map refresh (manual timer)');
+        window.google.maps.event.trigger(mapRef.current, 'resize');
+        
+        // Try to access the actual map instance
+        if (mapRef.current.__gm && mapRef.current.__gm.get) {
+          try {
+            const mapInstance = mapRef.current.__gm.get('map');
+            if (mapInstance) {
+              mapInstance.setZoom(mapInstance.getZoom() || 11);
+            }
+          } catch (e) {
+            console.error("Error refreshing map:", e);
+          }
+        }
+        
+        setManualRefreshCount(prev => prev + 1);
+      }
+    }, 2000);
+    
+    return () => clearTimeout(refreshTimer);
+  }, [isMapVisible, manualRefreshCount, isContainerReady]);
 
   // Setup a resize observer to ensure map resizes when container does
   useEffect(() => {
@@ -95,6 +146,22 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         setTimeout(() => {
           if (window.google?.maps?.event && mapRef.current) {
             window.google.maps.event.trigger(mapRef.current, 'resize');
+            
+            // Try to access the map instance directly
+            if (mapRef.current.__gm && mapRef.current.__gm.get) {
+              try {
+                const mapInstance = mapRef.current.__gm.get('map');
+                if (mapInstance) {
+                  // Force a zoom change to trigger redraw
+                  const currentZoom = mapInstance.getZoom();
+                  if (currentZoom) {
+                    mapInstance.setZoom(currentZoom);
+                  }
+                }
+              } catch (e) {
+                console.warn("Error accessing map instance:", e);
+              }
+            }
           }
         }, time);
       });
@@ -117,6 +184,9 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
       onReloadMap();
       setTimeout(() => {
         setIsReloading(false);
+        
+        // Increment manual refresh counter to trigger additional resize events
+        setManualRefreshCount(prev => prev + 1);
       }, 1000);
     }, 300);
   };
@@ -209,7 +279,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         <>
           <div 
             ref={mapRef} 
-            className="w-full h-full" 
+            className="w-full h-full bg-slate-200" 
             data-testid="map-container" 
             id="google-map-container" 
             style={{ width: '100%', height: '400px', minHeight: '400px' }}

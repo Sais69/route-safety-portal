@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { 
@@ -80,79 +79,34 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         }
         
         console.log("Creating map instance");
-        // Use a more lightweight map style and reduce the initial zoom level
+        // Use a simpler map style to ensure proper rendering
         const mapOptions = {
           center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
-          zoom: 11, // Lower zoom level for better performance
-          disableDefaultUI: false, // Enable UI for better usability
+          zoom: 11, 
+          mapTypeId: google.maps.MapTypeId.ROADMAP, // Force standard roadmap
+          disableDefaultUI: false,
           zoomControl: true,
           mapTypeControl: true,
           streetViewControl: false,
+          // Use a much simpler style to avoid rendering issues
           styles: [
             {
-              "featureType": "all",
-              "elementType": "labels.text.fill",
-              "stylers": [{"color": "#ffffff"}]
-            },
-            {
-              "featureType": "all",
-              "elementType": "labels.text.stroke",
-              "stylers": [{"color": "#000000"}, {"lightness": 13}]
-            },
-            {
               "featureType": "administrative",
-              "elementType": "geometry.fill",
-              "stylers": [{"color": "#000000"}]
-            },
-            {
-              "featureType": "administrative",
-              "elementType": "geometry.stroke",
-              "stylers": [{"color": "#144b53"}, {"lightness": 14}, {"weight": 1.4}]
-            },
-            {
-              "featureType": "landscape",
-              "elementType": "all",
-              "stylers": [{"color": "#08304b"}]
+              "elementType": "geometry",
+              "stylers": [{"visibility": "on"}]
             },
             {
               "featureType": "poi",
-              "elementType": "geometry",
-              "stylers": [{"color": "#0c4152"}, {"lightness": 5}]
+              "stylers": [{"visibility": "simplified"}]
             },
             {
-              "featureType": "road.highway",
-              "elementType": "geometry.fill",
-              "stylers": [{"color": "#000000"}]
-            },
-            {
-              "featureType": "road.highway",
-              "elementType": "geometry.stroke",
-              "stylers": [{"color": "#0b434f"}, {"lightness": 25}]
-            },
-            {
-              "featureType": "road.arterial",
-              "elementType": "geometry.fill",
-              "stylers": [{"color": "#000000"}]
-            },
-            {
-              "featureType": "road.arterial",
-              "elementType": "geometry.stroke",
-              "stylers": [{"color": "#0b3d51"}, {"lightness": 16}]
-            },
-            {
-              "featureType": "road.local",
-              "elementType": "geometry",
-              "stylers": [{"color": "#000000"}]
+              "featureType": "road",
+              "elementType": "labels.icon",
+              "stylers": [{"visibility": "on"}]
             },
             {
               "featureType": "transit",
-              "elementType": "all",
-              "stylers": [{"color": "#146474"}]
-            },
-            {
-              "featureType": "water",
-              "elementType": "all",
-              "stylers": [{"color": "#021019"}]
+              "stylers": [{"visibility": "simplified"}]
             }
           ]
         };
@@ -162,11 +116,12 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         setMap(newMap);
         console.log("Map instance created successfully");
 
-        // Force multiple resize events to ensure proper rendering
-        [100, 500, 1000, 2000].forEach(timeout => {
+        // Force resize events to ensure proper rendering
+        [100, 300, 500, 1000].forEach(timeout => {
           setTimeout(() => {
             if (newMap) {
               window.google.maps.event.trigger(newMap, 'resize');
+              newMap.setZoom(newMap.getZoom() || 11); // Force redraw
             }
           }, timeout);
         });
@@ -191,6 +146,13 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         
         setDirectionsRenderer(newDirectionsRenderer);
         console.log("Directions renderer created successfully");
+        
+        // Place a marker at the center to confirm map is working
+        new google.maps.Marker({
+          position: mapOptions.center,
+          map: newMap,
+          title: "Mapa cargado correctamente"
+        });
         
         // Reset error state and initialization flag
         setMapInitError(null);
