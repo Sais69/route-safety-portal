@@ -1,14 +1,38 @@
 
 // This file contains constants that are used throughout the application
+import { supabase } from '@/integrations/supabase/client';
 
 // Dummy value used only during development when API isn't available
 const FALLBACK_API_KEY = '';
 
 export let GOOGLE_MAPS_API_KEY = FALLBACK_API_KEY;
 
-// Function to fetch the Google Maps API key from Supabase Edge Function
+// Function to fetch the Google Maps API key from database
 export async function initializeApiKeys() {
   try {
+    console.log('Attempting to get Google Maps API key...');
+    
+    // First try to get the API key from the app_settings table
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'GOOGLE_MAPS_API_KEY')
+        .single();
+      
+      if (!error && data && data.value) {
+        console.log('Successfully retrieved API key from database');
+        GOOGLE_MAPS_API_KEY = data.value;
+        return true;
+      }
+      
+      console.log('API key not found in database, falling back to Edge Function');
+    } catch (err) {
+      console.warn('Error fetching API key from database:', err);
+      console.log('Falling back to Edge Function');
+    }
+    
+    // If we couldn't get the key from the database, use the Edge Function
     // Get the Supabase anon key from environment variables
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     
@@ -85,6 +109,7 @@ export async function initializeApiKeys() {
     GOOGLE_MAPS_API_KEY = data.apiKey;
     console.log('Google Maps API key initialized successfully');
     console.log('API key length:', GOOGLE_MAPS_API_KEY.length);
+    console.log('API key source:', data.source || 'unknown');
     
     // Validate the API key isn't empty
     if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.trim() === '') {
@@ -118,3 +143,36 @@ export async function initializeApiKeys() {
   }
 }
 
+// Función para insertar o actualizar la API key en la base de datos
+export async function storeGoogleMapsApiKey(apiKey: string): Promise<boolean> {
+  try {
+    if (!apiKey || apiKey.length < 20) {
+      console.error('API key invalid or too short');
+      return false;
+    }
+    
+    // Insertar o actualizar la API key en la tabla app_settings
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        { 
+          key: 'GOOGLE_MAPS_API_KEY', 
+          value: apiKey, 
+          description: 'Google Maps API Key para la aplicación' 
+        },
+        { onConflict: 'key' }
+      );
+    
+    if (error) {
+      console.error('Error storing API key in database:', error);
+      return false;
+    }
+    
+    console.log('API key successfully stored in database');
+    GOOGLE_MAPS_API_KEY = apiKey;
+    return true;
+  } catch (error) {
+    console.error('Error storing API key:', error);
+    return false;
+  }
+}
