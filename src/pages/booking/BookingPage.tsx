@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   calculateCost, 
@@ -297,12 +298,18 @@ const BookingPage: React.FC = () => {
               returnTime={returnTime}
               setReturnTime={setReturnTime}
               distance={distance}
-              totalCost={totalCost}
-              origin={origin}
-              destination={destination}
-              originPlace={originPlace}
-              destinationPlace={destinationPlace}
-              intermediateStops={intermediateStops}
+              totalCost={Number(totalCost)}
+              origin={originPlace}
+              destination={destinationPlace}
+              originCoords={origin}
+              destinationCoords={destination}
+              intermediateStops={intermediateStops.map(stop => ({
+                address: stop.placeName,
+                coords: {
+                  lat: stop.location.lat,
+                  lng: stop.location.lng
+                }
+              }))}
               duration={duration}
               returnDistance={returnDistance}
               returnDuration={returnDuration}
