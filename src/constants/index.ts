@@ -35,7 +35,9 @@ export async function initializeApiKeys() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
           },
           // Add cache control
           cache: 'no-store'
@@ -78,11 +80,18 @@ export async function initializeApiKeys() {
     
     GOOGLE_MAPS_API_KEY = data.apiKey;
     console.log('Google Maps API key initialized successfully');
+    console.log('API key length:', GOOGLE_MAPS_API_KEY.length);
     
     // Validate the API key isn't empty
     if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.trim() === '') {
       console.error('Retrieved API key is empty');
       throw new Error('Retrieved API key is empty');
+    }
+    
+    // Validate key format (it should be a string of reasonable length)
+    if (GOOGLE_MAPS_API_KEY.length < 10) {
+      console.error('Retrieved API key seems invalid (too short)');
+      throw new Error('Retrieved API key seems invalid (too short)');
     }
     
     return true;

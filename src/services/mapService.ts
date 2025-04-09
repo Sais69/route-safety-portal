@@ -1,4 +1,3 @@
-
 import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
@@ -17,13 +16,13 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     document.body.appendChild(mapTrackingDiv);
 
     // Check if we have a valid API key
-    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === '') {
-      console.error('No Google Maps API key available');
-      reject(new Error('Google Maps API key not available'));
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 10) {
+      console.error('No valid Google Maps API key available');
+      reject(new Error('Google Maps API key not available or invalid'));
       return;
     }
 
-    console.log('Attempting to load Google Maps with API key');
+    console.log('Attempting to load Google Maps with API key (length: ' + GOOGLE_MAPS_API_KEY.length + ')');
 
     try {
       // Remove any existing script tags to prevent duplicates
@@ -70,7 +69,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
           }
           reject(new Error('Google Maps API initialization timed out'));
         }
-      }, 20000); // 20 seconds timeout (increased)
+      }, 20000); // 20 seconds timeout
     } catch (error) {
       console.error('Error setting up Google Maps script:', error);
       if (document.body.contains(mapTrackingDiv)) {
@@ -206,7 +205,7 @@ export const ensureMapElementReady = (mapRef: React.RefObject<HTMLDivElement>): 
   });
 };
 
-// Function to create or get a map instance
+// Function to create or get a map instance with better error handling
 const mapInstances: { [key: string]: google.maps.Map } = {};
 
 export const createOrGetMapInstance = async (
@@ -216,7 +215,13 @@ export const createOrGetMapInstance = async (
 ): Promise<google.maps.Map> => {
   return new Promise((resolve, reject) => {
     try {
-      if (mapInstances[mapId]) {
+      // Check if we have a valid API key first
+      if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 10) {
+        throw new Error("Google Maps API key is invalid or not available");
+      }
+
+      // Check if we already have this map instance
+      if (mapInstances[mapId] && mapRef.current?.contains(mapInstances[mapId].getDiv())) {
         console.log(`Reusing existing map instance with ID: ${mapId}`);
         
         // Ensure map is properly sized
@@ -239,6 +244,15 @@ export const createOrGetMapInstance = async (
       }
 
       console.log('Creating new map instance in element:', mapRef.current);
+      
+      // Delete any existing map instance with this ID if it exists but is not valid
+      if (mapInstances[mapId]) {
+        try {
+          delete mapInstances[mapId];
+        } catch (e) {
+          console.warn("Error cleaning up old map instance:", e);
+        }
+      }
       
       const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
       mapInstances[mapId] = newMap;

@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Import sub-components
@@ -13,34 +13,7 @@ import useMapMarkers from './hooks/useMapMarkers';
 import usePlacesAutocomplete from './hooks/usePlacesAutocomplete';
 import useMapSection from './hooks/useMapSection';
 
-interface MapSectionProps {
-  origin: google.maps.LatLngLiteral | null;
-  destination: google.maps.LatLngLiteral | null;
-  setOrigin: (origin: google.maps.LatLngLiteral | null) => void;
-  setDestination: (destination: google.maps.LatLngLiteral | null) => void;
-  originPlace: string;
-  destinationPlace: string;
-  setOriginPlace: (place: string) => void;
-  setDestinationPlace: (place: string) => void;
-  intermediateStops: Array<{
-    id: string;
-    placeName: string;
-    location: google.maps.LatLngLiteral;
-  }>;
-  setIntermediateStops: React.Dispatch<React.SetStateAction<Stop[]>>;
-  distance: number;
-  setDistance: (distance: number) => void;
-  isEditingMarkers: boolean;
-  setIsEditingMarkers: (isEditing: boolean) => void;
-  calculateRoute: () => void;
-  duration?: string;
-}
-
-interface Stop {
-  id: string;
-  placeName: string;
-  location: google.maps.LatLngLiteral;
-}
+import { MapSectionProps, Stop } from './types/map';
 
 const MapSection: React.FC<MapSectionProps> = ({
   origin,
@@ -67,7 +40,16 @@ const MapSection: React.FC<MapSectionProps> = ({
   const newStopInputRef = useRef<HTMLInputElement>(null);
   
   // State for handling map reloading
-  const { isReloadingMap, handleReloadMap } = useMapSection();
+  const { isReloadingMap, handleReloadMap, checkApiKey } = useMapSection();
+
+  // Initialize map on component mount
+  useEffect(() => {
+    // Check if we have a valid API key
+    if (!checkApiKey()) {
+      console.log("No valid API key found on initial load, attempting to load one");
+      handleReloadMap();
+    }
+  }, []);
 
   // Use custom hooks
   const {

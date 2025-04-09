@@ -1,8 +1,9 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Pencil, AlertCircle } from 'lucide-react';
+import { RefreshCw, Pencil, AlertCircle, FileWarning } from 'lucide-react';
 import { toast } from 'sonner';
+import { GOOGLE_MAPS_API_KEY } from '@/constants';
 
 interface MapDisplayProps {
   mapRef: React.RefObject<HTMLDivElement>;
@@ -25,6 +26,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   const [isContainerReady, setIsContainerReady] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const hasApiKey = Boolean(GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.length > 10);
 
   // Use IntersectionObserver to detect when map is visible in viewport
   useEffect(() => {
@@ -120,9 +122,23 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     setTimeout(() => window.location.reload(), 500);
   };
 
-  // Generate a suitable error message based on the number of attempts
+  // Generate a suitable error message based on the number of attempts and API key status
   const getErrorMessage = () => {
     if (!mapInitError) return null;
+    
+    if (!hasApiKey) {
+      return (
+        <>
+          <div className="flex items-center mb-3 text-red-400">
+            <FileWarning className="mr-2 h-5 w-5" />
+            <p>Error de configuración: No se encontró la API key de Google Maps</p>
+          </div>
+          <p className="text-sm mt-2 text-gray-300">
+            La aplicación no puede conectarse con Google Maps porque falta la API key.
+          </p>
+        </>
+      );
+    }
     
     // If we've had multiple attempts, provide more detailed guidance
     if (mapInitAttempts > 1) {
