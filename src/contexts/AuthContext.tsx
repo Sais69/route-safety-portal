@@ -1,4 +1,3 @@
-
 import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,15 +23,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check if user is admin - fixed logic
+  // Updated admin check logic with specific credentials
   const checkAdminStatus = (currentUser: User | null) => {
     if (!currentUser) return false;
     
-    // Admin check logic
     const email = currentUser.email?.toLowerCase() || '';
-    const firstName = currentUser.user_metadata?.first_name || '';
+    const ADMIN_EMAIL = 'trayectolabs@gmail.com';
     
-    return email.endsWith('@admin.com') || firstName === 'Trayectotec';
+    return email === ADMIN_EMAIL;
   };
 
   useEffect(() => {
