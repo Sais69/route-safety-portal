@@ -75,7 +75,8 @@ const MapSection: React.FC<MapSectionProps> = ({
     map,
     mapInitError,
     setMapInitError,
-    calculateRouteWithDirections
+    calculateRouteWithDirections,
+    mapInitAttempts
   } = useGoogleMaps(mapRef, isReloadingMap);
 
   const {
@@ -196,7 +197,21 @@ const MapSection: React.FC<MapSectionProps> = ({
 
   // Calculate route on origin or destination change with error handling
   useEffect(() => {
-    if (origin && destination) {
+    if (!origin || !destination) return;
+    
+    // Don't recalculate if map isn't loaded yet, we'll handle this elsewhere
+    if (!map) {
+      console.log("Map not ready, skipping route calculation");
+      return;
+    }
+    
+    // Make sure the map is visible and properly sized before calculating the route
+    if (window.google && map) {
+      window.google.maps.event.trigger(map, 'resize');
+    }
+    
+    // Slight delay to ensure the map is ready
+    const calculateTimer = setTimeout(() => {
       calculateRouteWithDirections(
         origin, 
         destination, 
@@ -213,8 +228,10 @@ const MapSection: React.FC<MapSectionProps> = ({
           });
         }
       );
-    }
-  }, [origin, destination, intermediateStops]);
+    }, 200);
+    
+    return () => clearTimeout(calculateTimer);
+  }, [origin, destination, intermediateStops, map]);
 
   // Update markers after route is calculated
   const updateMarkers = () => {
@@ -297,6 +314,7 @@ const MapSection: React.FC<MapSectionProps> = ({
           mapInitError={mapInitError}
           onReloadMap={handleReloadMap}
           onToggleEditMode={toggleMarkerEditMode}
+          mapInitAttempts={mapInitAttempts}
         />
 
         <RouteInfo distance={distance} duration={duration} />

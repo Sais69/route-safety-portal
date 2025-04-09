@@ -7,85 +7,151 @@ declare global {
   interface Window {
     initGoogleMapsCallback: () => void;
     googleMapsLoaded: boolean; // Flag to track loading status
+    googleMapsInitialized: boolean; // Flag to track if the API is fully initialized
+    googleMapsError: string | null; // Track any error that occurred
   }
 }
 
 // Función para verificar si Google Maps ya está cargado
 export const isGoogleMapsLoaded = (): boolean => {
-  return typeof window.google !== 'undefined' && typeof window.google.maps !== 'undefined';
+  return typeof window !== 'undefined' && 
+         typeof window.google !== 'undefined' && 
+         typeof window.google.maps !== 'undefined' &&
+         window.googleMapsInitialized === true;
 };
 
-// Función para cargar el script de Google Maps
+// Función para cargar el script de Google Maps con mejor manejo de errores
 export const loadGoogleMapsScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     // Si ya está cargado, resuelve inmediatamente
     if (isGoogleMapsLoaded()) {
-      console.log('Google Maps already loaded');
+      console.log('Google Maps already loaded and initialized');
       resolve();
       return;
     }
+    
+    // Si el script ya está cargándose, espera el resultado
+    if (document.getElementById('google-maps-script')) {
+      console.log('Google Maps script is already loading, waiting for completion');
+      
+      // Comprueba cada 200ms si la API se ha cargado
+      const checkInterval = setInterval(() => {
+        if (window.googleMapsInitialized) {
+          clearInterval(checkInterval);
+          console.log('Google Maps finished loading while waiting');
+          resolve();
+        }
+        
+        if (window.googleMapsError) {
+          clearInterval(checkInterval);
+          reject(new Error(window.googleMapsError));
+        }
+      }, 200);
+      
+      // Establecer un límite de tiempo para evitar esperar indefinidamente
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!window.googleMapsInitialized) {
+          window.googleMapsError = 'Timeout while waiting for Google Maps to load';
+          reject(new Error(window.googleMapsError));
+        }
+      }, 20000); // 20 segundos máximo de espera
+      
+      return;
+    }
 
-    // Crear el callback global
+    // Inicializar flags de estado
+    window.googleMapsLoaded = false;
+    window.googleMapsInitialized = false;
+    window.googleMapsError = null;
+
+    // Crear el callback global con mejor gestión de errores
     window.initGoogleMapsCallback = () => {
-      console.log('Google Maps API initialized');
-      window.googleMapsLoaded = true;
-      resolve();
+      console.log('Google Maps API callback executed');
+      
+      try {
+        if (typeof window.google === 'undefined' || typeof window.google.maps === 'undefined') {
+          throw new Error('Google Maps failed to initialize properly');
+        }
+        
+        window.googleMapsLoaded = true;
+        window.googleMapsInitialized = true;
+        console.log('Google Maps API successfully initialized');
+        resolve();
+      } catch (error) {
+        console.error('Error in Google Maps initialization:', error);
+        window.googleMapsError = error instanceof Error ? error.message : 'Unknown error during Maps initialization';
+        reject(new Error(window.googleMapsError));
+      }
     };
 
-    // Eliminar cualquier script de Google Maps que pudiera estar fallando
-    const existingScript = document.getElementById('google-maps-script');
-    if (existingScript) {
-      existingScript.remove();
-    }
-
-    // Evitar que haya múltiples instancias del callback
-    if (window.google && window.google.maps) {
-      console.log('Google Maps API already loaded, resolving immediately');
-      resolve();
-      return;
-    }
-
-    // Crear el script con opciones específicas
+    // Crear el script con mejores opciones
     const script = document.createElement('script');
     script.id = 'google-maps-script';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=quarterly&region=EC&language=es`;
     script.async = true;
     script.defer = true;
     
-    // Manejar errores
+    // Manejar errores de carga del script
     script.onerror = (error) => {
-      console.error('Error loading Google Maps:', error);
+      console.error('Error loading Google Maps script:', error);
+      window.googleMapsError = 'Failed to load Google Maps script';
       reject(new Error('Google Maps script failed to load'));
     };
 
     // Añadir un timeout para detectar problemas de carga
     const timeoutId = setTimeout(() => {
       console.error('Google Maps script load timeout');
+      window.googleMapsError = 'Google Maps script load timeout';
       
-      // Try loading again with different approach
-      const retryScript = document.createElement('script');
-      retryScript.id = 'google-maps-script-retry';
-      retryScript.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initGoogleMapsCallback&v=quarterly&region=EC&language=es`;
-      retryScript.async = true;
-      retryScript.defer = true;
-      document.head.appendChild(retryScript);
-      
-      // Set another timeout for the retry
-      setTimeout(() => {
-        if (!window.googleMapsLoaded) {
-          reject(new Error('Google Maps script load retry failed'));
-        }
-      }, 10000);
-    }, 20000); // Aumentamos el timeout a 20 segundos
+      // No intentamos recargar automáticamente, en su lugar mostraremos un error al usuario
+      reject(new Error('Google Maps script load timeout after 20s'));
+    }, 20000); // 20 segundos de timeout
 
     // Cuando se cargue exitosamente, limpiar el timeout
     script.onload = () => {
+      console.log('Google Maps script tag loaded');
       clearTimeout(timeoutId);
-      // La resolución real se maneja en el callback global
+      // La resolución se maneja en el callback global
     };
 
     // Añadir a la página
     document.head.appendChild(script);
+  });
+};
+
+// Función para verificar el estado del DOM antes de interactuar con el mapa
+export const ensureMapElementReady = (mapRef: React.RefObject<HTMLDivElement>): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (mapRef.current) {
+      // Si el elemento ya existe, verificar que tenga dimensiones
+      const rect = mapRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        resolve();
+        return;
+      }
+    }
+    
+    // Si el elemento no existe o no tiene dimensiones, esperar un poco
+    let attempts = 0;
+    const checkElement = setInterval(() => {
+      attempts++;
+      
+      if (mapRef.current) {
+        const rect = mapRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          clearInterval(checkElement);
+          resolve();
+          return;
+        }
+      }
+      
+      // Dar por fallido después de varios intentos
+      if (attempts >= 10) {
+        clearInterval(checkElement);
+        reject(new Error('Map container element not ready after multiple attempts'));
+      }
+    }, 200); // Comprobar cada 200ms
   });
 };
 
