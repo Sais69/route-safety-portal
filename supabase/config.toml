@@ -2,3 +2,4 @@
 project_id = "tuyxymqapxiinsijucww"
 
 [functions.get-maps-api-key]
+verify_jwt = false
