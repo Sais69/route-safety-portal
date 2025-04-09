@@ -7,6 +7,7 @@ import {
   ensureMapElementReady,
   createOrGetMapInstance
 } from '@/services/mapService';
+import { GOOGLE_MAPS_API_KEY } from '@/constants';
 
 export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadingMap: boolean) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -31,9 +32,16 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
       
       try {
         console.log("Starting map initialization");
+        console.log("Current API key status:", GOOGLE_MAPS_API_KEY ? "Available" : "Not available");
+        
+        // Check if we have an API key
+        if (!GOOGLE_MAPS_API_KEY) {
+          throw new Error("Google Maps API key not available. Please check your configuration.");
+        }
         
         // Step 1: Wait for document to be ready
         if (document.readyState !== 'complete') {
+          console.log("Waiting for document to be ready...");
           await new Promise<void>((resolve) => {
             const checkReady = () => {
               if (document.readyState === 'complete') {
@@ -76,8 +84,10 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         const mapOptions = {
           center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
           zoom: 11, // Lower zoom level for better performance
-          disableDefaultUI: true, // Simplify UI for better performance
-          zoomControl: true, // But keep zoom controls
+          disableDefaultUI: false, // Enable UI for better usability
+          zoomControl: true,
+          mapTypeControl: true,
+          streetViewControl: false,
           styles: [
             {
               "featureType": "all",
@@ -216,7 +226,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         window.google?.maps.event.clearInstanceListeners(map);
       }
     };
-  }, [isReloadingMap]); 
+  }, [isReloadingMap, GOOGLE_MAPS_API_KEY]); // Add GOOGLE_MAPS_API_KEY as dependency
 
   // Calculate route with directions
   const calculateRouteWithDirections = (

@@ -1,6 +1,5 @@
 
 // This file contains constants that are used throughout the application
-// API keys are not stored here securely from Supabase Edge Functions
 
 // Dummy value used only during development when API isn't available
 const FALLBACK_API_KEY = '';
@@ -23,32 +22,45 @@ export async function initializeApiKeys() {
     // Fetch API key with proper authentication, with retry mechanism
     let response;
     let retries = 0;
-    const maxRetries = 3;
+    const maxRetries = 5; // Increased max retries
     
     while (retries < maxRetries) {
       try {
-        response = await fetch('https://tuyxymqapxiinsijucww.supabase.co/functions/v1/get-maps-api-key', {
+        console.log(`Attempt ${retries + 1} to fetch Google Maps API key`);
+        
+        // Use a timestamp parameter to prevent caching
+        const timestamp = new Date().getTime();
+        
+        response = await fetch(`https://tuyxymqapxiinsijucww.supabase.co/functions/v1/get-maps-api-key?t=${timestamp}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${supabaseAnonKey}`
-          }
+          },
+          // Add cache control
+          cache: 'no-store'
         });
+        
+        console.log(`API key fetch attempt ${retries + 1} status:`, response.status);
         
         if (response.ok) break;
         
         console.warn(`Attempt ${retries + 1} failed with status: ${response.status}. Retrying...`);
         retries++;
         
-        // Exponential backoff
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, retries)));
+        // Exponential backoff with jitter to prevent thundering herd
+        const baseWait = Math.min(1000 * Math.pow(2, retries), 10000);
+        const jitter = Math.random() * 1000;
+        await new Promise(r => setTimeout(r, baseWait + jitter));
       } catch (fetchError) {
         console.error(`Fetch attempt ${retries + 1} failed:`, fetchError);
         retries++;
         if (retries >= maxRetries) throw fetchError;
         
-        // Exponential backoff
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, retries)));
+        // Exponential backoff with jitter
+        const baseWait = Math.min(1000 * Math.pow(2, retries), 10000);
+        const jitter = Math.random() * 1000;
+        await new Promise(r => setTimeout(r, baseWait + jitter));
       }
     }
 
@@ -66,6 +78,13 @@ export async function initializeApiKeys() {
     
     GOOGLE_MAPS_API_KEY = data.apiKey;
     console.log('Google Maps API key initialized successfully');
+    
+    // Validate the API key isn't empty
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.trim() === '') {
+      console.error('Retrieved API key is empty');
+      throw new Error('Retrieved API key is empty');
+    }
+    
     return true;
   } catch (error) {
     console.error('Error initializing API keys:', error);

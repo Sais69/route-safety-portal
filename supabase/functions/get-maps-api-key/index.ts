@@ -13,16 +13,30 @@ serve(async (req) => {
   }
 
   try {
+    console.log("Edge function - get-maps-api-key invoked");
+    
     // Get the API key from environment variables
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
     
     if (!apiKey) {
       console.error("API key not found in environment variables");
-      throw new Error('API key not found');
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key not found',
+          message: 'The Google Maps API key is not configured in environment variables',
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
     }
     
-    // Add detailed logging
-    console.log("API key successfully retrieved");
+    console.log("API key successfully retrieved from environment");
     console.log("Request origin:", req.headers.get('origin'));
     
     // Return the API key in the response with proper headers
@@ -46,7 +60,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error.message,
-        message: 'Failed to retrieve API key' 
+        message: 'Failed to retrieve API key',
+        timestamp: new Date().toISOString()
       }),
       { 
         status: 500, 

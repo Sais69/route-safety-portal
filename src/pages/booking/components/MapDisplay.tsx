@@ -1,7 +1,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Pencil } from 'lucide-react';
+import { RefreshCw, Pencil, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MapDisplayProps {
   mapRef: React.RefObject<HTMLDivElement>;
@@ -22,6 +23,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
 }) => {
   const [isMapVisible, setIsMapVisible] = useState(false);
   const [isContainerReady, setIsContainerReady] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Use IntersectionObserver to detect when map is visible in viewport
@@ -85,7 +87,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
       console.log('Ensuring map is properly sized after becoming visible');
       
       // Force multiple resize events to ensure map renders properly
-      const resizeTimes = [100, 500, 1000, 2000]; // Try at different intervals
+      const resizeTimes = [100, 300, 600, 1000, 2000]; // Try at different intervals
       
       resizeTimes.forEach(time => {
         setTimeout(() => {
@@ -97,6 +99,27 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     }
   }, [isMapVisible, isContainerReady]);
 
+  // Handle map reload with additional logging
+  const handleReloadClick = () => {
+    console.log('User requested map reload');
+    setIsReloading(true);
+    
+    // Show toast
+    toast.info('Recargando mapa. Por favor espere...');
+    
+    // Small timeout to show loading state
+    setTimeout(() => {
+      onReloadMap();
+      setIsReloading(false);
+    }, 300);
+  };
+
+  // Full page reload for persistent issues
+  const handleFullReload = () => {
+    toast.info('Recargando la página completa...');
+    setTimeout(() => window.location.reload(), 500);
+  };
+
   // Generate a suitable error message based on the number of attempts
   const getErrorMessage = () => {
     if (!mapInitError) return null;
@@ -105,22 +128,28 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     if (mapInitAttempts > 1) {
       return (
         <>
-          <div className="text-red-400 mb-3">
+          <div className="flex items-center mb-3 text-red-400">
+            <AlertCircle className="mr-2 h-5 w-5" />
             <p>{mapInitError}</p>
-            <p className="text-sm mt-2">Recomendamos:</p>
-            <ul className="text-sm list-disc pl-5 mt-1">
-              <li>Verificar su conexión a internet</li>
-              <li>Probar con otro navegador (Chrome, Firefox, Safari)</li>
-              <li>Desactivar bloqueadores de anuncios o scripts</li>
-              <li>Comprobar que la API key de Google Maps está correctamente configurada</li>
-            </ul>
           </div>
+          <p className="text-sm mt-2 text-blue-400">Recomendamos:</p>
+          <ul className="text-sm list-disc pl-5 mt-1 text-gray-300">
+            <li>Verificar su conexión a internet</li>
+            <li>Probar con otro navegador (Chrome, Firefox, Safari)</li>
+            <li>Desactivar bloqueadores de anuncios o scripts</li>
+            <li>Comprobar que la API key de Google Maps está correctamente configurada</li>
+          </ul>
         </>
       );
     }
     
     // Simple error message for first attempt
-    return <div className="text-red-400 mb-2">{mapInitError}</div>;
+    return (
+      <div className="flex items-center mb-3 text-red-400">
+        <AlertCircle className="mr-2 h-5 w-5" />
+        <p>{mapInitError}</p>
+      </div>
+    );
   };
 
   return (
@@ -129,23 +158,21 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         <div className="w-full h-full flex items-center justify-center bg-slate-800/70">
           <div className="text-center p-4 max-w-md">
             {getErrorMessage()}
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
               <Button 
-                onClick={onReloadMap}
+                onClick={handleReloadClick}
                 variant="outline"
                 className="border-blue-500/30 text-blue-400"
+                disabled={isReloading}
               >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reintentar cargar mapa
+                <RefreshCw className={`mr-2 h-4 w-4 ${isReloading ? 'animate-spin' : ''}`} />
+                {isReloading ? 'Recargando...' : 'Reintentar cargar mapa'}
               </Button>
               
               <Button
                 variant="outline"
                 className="border-blue-500/30 text-blue-400"
-                onClick={() => {
-                  // Attempt a full page reload as a last resort
-                  window.location.reload();
-                }}
+                onClick={handleFullReload}
               >
                 Recargar página
               </Button>
@@ -175,10 +202,11 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
               variant="outline" 
               size="icon" 
               className="bg-slate-800/80 border-blue-500/30 text-blue-400 hover:bg-slate-700"
-              onClick={onReloadMap}
+              onClick={handleReloadClick}
               title="Recargar mapa"
+              disabled={isReloading}
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className={`h-4 w-4 ${isReloading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </>
