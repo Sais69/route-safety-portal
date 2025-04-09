@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import RouteInfo from "./booking/components/RouteInfo";
 
 interface BookingUser {
   name: string;
@@ -28,6 +30,16 @@ interface BookingUser {
 // Define the type of the bookings table row
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 
+// Define the structure for intermediate stops
+interface IntermediateStop {
+  id?: string;
+  placeName: string;
+  location?: {
+    lat: number;
+    lng: number;
+  };
+}
+
 interface Booking extends BookingRow {
   userData?: BookingUser;
   vehicleType?: string;
@@ -37,6 +49,8 @@ interface Booking extends BookingRow {
   returnDate?: string | Date | null;
   returnTime?: string | null;
   createdAt?: string;
+  // Parse intermediate_stops as IntermediateStop[]
+  parsedIntermediateStops?: IntermediateStop[];
 }
 
 const MyBookings = () => {
@@ -76,6 +90,27 @@ const MyBookings = () => {
       // Process bookings data
       if (data) {
         const processedBookings = data.map((booking: BookingRow) => {
+          // Parse intermediate stops to the correct format
+          let parsedIntermediateStops: IntermediateStop[] = [];
+          
+          if (booking.intermediate_stops && Array.isArray(booking.intermediate_stops)) {
+            parsedIntermediateStops = booking.intermediate_stops.map((stop) => {
+              // Handle different possible formats of stop data
+              if (typeof stop === 'string') {
+                return { placeName: stop };
+              } else if (typeof stop === 'object' && stop !== null) {
+                // Try to extract placeName from the object
+                const stopObj = stop as Record<string, any>;
+                return {
+                  id: stopObj.id?.toString() || undefined,
+                  placeName: stopObj.placeName?.toString() || "Parada sin nombre",
+                  location: stopObj.location || undefined
+                };
+              }
+              return { placeName: "Parada sin nombre" };
+            });
+          }
+          
           return {
             ...booking,
             // Map fields for backward compatibility
@@ -84,7 +119,8 @@ const MyBookings = () => {
             departureTime: booking.departure_time,
             returnDate: booking.return_date,
             returnTime: booking.return_time,
-            createdAt: booking.created_at
+            createdAt: booking.created_at,
+            parsedIntermediateStops
           };
         });
         
@@ -131,7 +167,7 @@ const MyBookings = () => {
   };
 
   // Generate Google Maps route link with waypoints
-  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: IntermediateStop[]) => {
     let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     
     // Add waypoints if there are intermediate stops
@@ -344,7 +380,7 @@ const MyBookings = () => {
 
 const BookingCard = ({ booking }: { booking: Booking }) => {
   // Generate Google Maps route link with waypoints
-  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: IntermediateStop[]) => {
     let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     
     // Add waypoints if there are intermediate stops
@@ -411,7 +447,7 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
   const formattedDate = formatDate(booking.departure_date || (booking.departureDate as string));
   const departureTime = booking.departure_time || booking.departureTime;
   const vehicleType = booking.vehicle_type || booking.vehicleType;
-  const intermediateStops = booking.intermediate_stops || [];
+  const intermediateStops = booking.parsedIntermediateStops || [];
 
   return (
     <Card className={`glass-card bg-slate-900/50 overflow-hidden border ${getBorderColor(booking.status)} backdrop-blur-sm hover:bg-slate-800/50 transition-colors`}>
@@ -461,7 +497,7 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
               <h4 className="text-sm font-medium text-blue-400 mb-1">Paradas intermedias:</h4>
               <ul className="list-disc list-inside">
                 {intermediateStops.map((stop, idx) => (
-                  <li key={stop.id || idx} className="text-sm text-gray-300">{stop.placeName}</li>
+                  <li key={idx} className="text-sm text-gray-300">{stop.placeName}</li>
                 ))}
               </ul>
             </div>
@@ -479,30 +515,8 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
             </a>
           </div>
 
-          <div className="flex flex-wrap gap-4 pt-2">
-            <div className="bg-slate-800/70 rounded-lg px-3 py-2 flex items-center border border-blue-500/20">
-              <Clock size={16} className="text-blue-400 mr-2" />
-              <div>
-                <p className="text-xs text-gray-400">Duración</p>
-                <p className="font-medium text-sm text-gray-300">{booking.duration || 'No disponible'}</p>
-              </div>
-            </div>
-            <div className="bg-slate-800/70 rounded-lg px-3 py-2 flex items-center border border-blue-500/20">
-              <Route size={16} className="text-blue-400 mr-2" />
-              <div>
-                <p className="text-xs text-gray-400">Distancia</p>
-                <p className="font-medium text-sm text-gray-300">{booking.distance} km</p>
-              </div>
-            </div>
-            <div className="bg-slate-800/70 rounded-lg px-3 py-2 flex items-center border border-blue-500/20">
-              <div>
-                <p className="text-xs text-gray-400">Costo</p>
-                <p className="font-medium text-sm text-gray-300">
-                  ${typeof booking.cost === 'number' ? booking.cost.toFixed(2) : booking.cost}
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Replace the distance and duration card with the RouteInfo component */}
+          <RouteInfo distance={booking.distance} duration={booking.duration || undefined} />
         </div>
       </CardContent>
     </Card>
