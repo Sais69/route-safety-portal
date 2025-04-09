@@ -60,6 +60,14 @@ const MapSection: React.FC<MapSectionProps> = ({
     mapInitAttempts
   } = useGoogleMaps(mapRef, isReloadingMap);
 
+  // Monitor for API key validity, triggering reload if needed
+  useEffect(() => {
+    if (mapInitError && mapInitError.includes("API key") && !checkApiKey()) {
+      console.log("Map error detected related to API key, attempting to reload API key");
+      handleReloadMap();
+    }
+  }, [mapInitError, checkApiKey]);
+
   const {
     updateMarkersForEditing,
     createOrUpdateMarker,

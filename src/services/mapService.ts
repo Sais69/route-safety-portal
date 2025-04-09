@@ -1,3 +1,4 @@
+
 import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
@@ -16,8 +17,8 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     document.body.appendChild(mapTrackingDiv);
 
     // Check if we have a valid API key
-    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 10) {
-      console.error('No valid Google Maps API key available');
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 20) {
+      console.error('No valid Google Maps API key available. Key length:', GOOGLE_MAPS_API_KEY ? GOOGLE_MAPS_API_KEY.length : 0);
       reject(new Error('Google Maps API key not available or invalid'));
       return;
     }
@@ -33,6 +34,10 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap`;
       script.async = true;
       script.defer = true;
+      
+      // Add additional script properties for better loading
+      script.id = 'google-maps-script';
+      script.crossOrigin = "anonymous";
 
       // Setup global callback that the API will call when loaded
       window.initMap = () => {
@@ -47,6 +52,22 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       script.onload = () => {
         console.log('Google Maps script tag loaded (onload event)');
         // Note: We don't resolve here, we wait for the callback
+        
+        // Sometimes the callback might not get called, so we'll set a backup timer
+        setTimeout(() => {
+          if (window.google && window.google.maps && !document.body.contains(mapTrackingDiv)) {
+            // Already resolved
+            return;
+          }
+          
+          if (window.google && window.google.maps) {
+            console.log('Google Maps API loaded but callback not triggered. Resolving manually.');
+            if (document.body.contains(mapTrackingDiv)) {
+              document.body.removeChild(mapTrackingDiv);
+            }
+            resolve();
+          }
+        }, 3000);
       };
 
       script.onerror = (error) => {
@@ -82,7 +103,9 @@ export const loadGoogleMapsScript = (): Promise<void> => {
 
 // Function to check if Google Maps is loaded
 export const isGoogleMapsLoaded = (): boolean => {
-  return !!(window.google && window.google.maps);
+  const isLoaded = !!(window.google && window.google.maps);
+  console.log('Checking if Google Maps is loaded:', isLoaded);
+  return isLoaded;
 };
 
 // Function to calculate the distance between two points
@@ -216,7 +239,8 @@ export const createOrGetMapInstance = async (
   return new Promise((resolve, reject) => {
     try {
       // Check if we have a valid API key first
-      if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 10) {
+      if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.length < 20) {
+        console.error("Google Maps API key invalid or not available. Key length:", GOOGLE_MAPS_API_KEY ? GOOGLE_MAPS_API_KEY.length : 0);
         throw new Error("Google Maps API key is invalid or not available");
       }
 
@@ -236,10 +260,12 @@ export const createOrGetMapInstance = async (
       }
 
       if (!mapRef.current) {
+        console.error("Map container element not available");
         throw new Error("Map container element not available");
       }
 
       if (!window.google || !window.google.maps) {
+        console.error("Google Maps API not loaded");
         throw new Error("Google Maps API not loaded");
       }
 
@@ -254,22 +280,33 @@ export const createOrGetMapInstance = async (
         }
       }
       
-      const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
-      mapInstances[mapId] = newMap;
-      
-      // Monitor map loading
-      const checkMapLoaded = () => {
-        if (newMap.getDiv() && newMap.getDiv().offsetWidth > 0) {
-          console.log('Map instance created and rendered successfully with dimensions:', 
-            newMap.getDiv().offsetWidth, 'x', newMap.getDiv().offsetHeight);
-          resolve(newMap);
-        } else {
-          console.log('Waiting for map to render...');
-          setTimeout(checkMapLoaded, 100);
-        }
-      };
-      
-      checkMapLoaded();
+      // Create a new map with error handling
+      try {
+        const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
+        mapInstances[mapId] = newMap;
+        
+        // Monitor map loading
+        const checkMapLoaded = () => {
+          try {
+            if (newMap && newMap.getDiv() && newMap.getDiv().offsetWidth > 0) {
+              console.log('Map instance created and rendered successfully with dimensions:', 
+                newMap.getDiv().offsetWidth, 'x', newMap.getDiv().offsetHeight);
+              resolve(newMap);
+            } else {
+              console.log('Waiting for map to render...');
+              setTimeout(checkMapLoaded, 100);
+            }
+          } catch (e) {
+            console.error("Error checking if map is loaded:", e);
+            reject(e);
+          }
+        };
+        
+        checkMapLoaded();
+      } catch (mapError) {
+        console.error("Error creating Google Map instance:", mapError);
+        reject(mapError);
+      }
       
     } catch (error) {
       console.error('Error creating map instance:', error);

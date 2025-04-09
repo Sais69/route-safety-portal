@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Pencil, AlertCircle, FileWarning } from 'lucide-react';
+import { RefreshCw, Pencil, AlertCircle, FileWarning, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/constants';
 
@@ -26,7 +26,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   const [isContainerReady, setIsContainerReady] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const hasApiKey = Boolean(GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.length > 10);
+  const hasApiKey = Boolean(GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.length > 20);
 
   // Use IntersectionObserver to detect when map is visible in viewport
   useEffect(() => {
@@ -112,13 +112,16 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     // Small timeout to show loading state
     setTimeout(() => {
       onReloadMap();
-      setIsReloading(false);
+      setTimeout(() => {
+        setIsReloading(false);
+      }, 1000);
     }, 300);
   };
 
   // Full page reload for persistent issues
   const handleFullReload = () => {
     toast.info('Recargando la página completa...');
+    localStorage.setItem('mapReloadAttempt', (parseInt(localStorage.getItem('mapReloadAttempt') || '0') + 1).toString());
     setTimeout(() => window.location.reload(), 500);
   };
 
@@ -130,11 +133,14 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
       return (
         <>
           <div className="flex items-center mb-3 text-red-400">
-            <FileWarning className="mr-2 h-5 w-5" />
-            <p>Error de configuración: No se encontró la API key de Google Maps</p>
+            <KeyRound className="mr-2 h-5 w-5" />
+            <p className="font-semibold">Error de configuración: No se encontró la API key de Google Maps</p>
           </div>
           <p className="text-sm mt-2 text-gray-300">
-            La aplicación no puede conectarse con Google Maps porque falta la API key.
+            La aplicación no puede conectarse con Google Maps porque falta la API key o es inválida.
+          </p>
+          <p className="text-sm mt-2 text-blue-400">
+            Estamos intentando recuperar la API key automáticamente...
           </p>
         </>
       );
@@ -146,14 +152,14 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         <>
           <div className="flex items-center mb-3 text-red-400">
             <AlertCircle className="mr-2 h-5 w-5" />
-            <p>{mapInitError}</p>
+            <p className="font-semibold">{mapInitError}</p>
           </div>
           <p className="text-sm mt-2 text-blue-400">Recomendamos:</p>
           <ul className="text-sm list-disc pl-5 mt-1 text-gray-300">
             <li>Verificar su conexión a internet</li>
             <li>Probar con otro navegador (Chrome, Firefox, Safari)</li>
             <li>Desactivar bloqueadores de anuncios o scripts</li>
-            <li>Comprobar que la API key de Google Maps está correctamente configurada</li>
+            <li>Probar recargando la página completa</li>
           </ul>
         </>
       );

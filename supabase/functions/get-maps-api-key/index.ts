@@ -27,7 +27,28 @@ serve(async (req) => {
         JSON.stringify({ 
           error: 'API key not found',
           message: 'The Google Maps API key is not configured in environment variables',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          status: 'error'
+        }),
+        { 
+          status: 500, 
+          headers: { 
+            ...corsHeaders,
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
+    }
+    
+    // Basic validation of API key format
+    if (apiKey.length < 20) {
+      console.error("API key format appears invalid (too short)");
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid API key format',
+          message: 'The Google Maps API key appears to be invalid (too short)',
+          timestamp: new Date().toISOString(),
+          status: 'error'
         }),
         { 
           status: 500, 
@@ -49,12 +70,14 @@ serve(async (req) => {
         apiKey,
         message: 'API key retrieved successfully',
         timestamp: new Date().toISOString(),
-        keyLength: apiKey.length
+        keyLength: apiKey.length,
+        status: 'success'
       }),
       { 
         headers: { 
           ...corsHeaders,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
         } 
       }
     );
@@ -65,7 +88,8 @@ serve(async (req) => {
       JSON.stringify({ 
         error: error.message,
         message: 'Failed to retrieve API key',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        status: 'error'
       }),
       { 
         status: 500, 

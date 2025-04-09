@@ -22,9 +22,10 @@ export async function initializeApiKeys() {
     // Fetch API key with proper authentication, with retry mechanism
     let response;
     let retries = 0;
+    let success = false;
     const maxRetries = 5; // Increased max retries
     
-    while (retries < maxRetries) {
+    while (retries < maxRetries && !success) {
       try {
         console.log(`Attempt ${retries + 1} to fetch Google Maps API key`);
         
@@ -45,7 +46,10 @@ export async function initializeApiKeys() {
         
         console.log(`API key fetch attempt ${retries + 1} status:`, response.status);
         
-        if (response.ok) break;
+        if (response.ok) {
+          success = true;
+          break;
+        }
         
         console.warn(`Attempt ${retries + 1} failed with status: ${response.status}. Retrying...`);
         retries++;
@@ -89,9 +93,22 @@ export async function initializeApiKeys() {
     }
     
     // Validate key format (it should be a string of reasonable length)
-    if (GOOGLE_MAPS_API_KEY.length < 10) {
+    if (GOOGLE_MAPS_API_KEY.length < 20) {
       console.error('Retrieved API key seems invalid (too short)');
       throw new Error('Retrieved API key seems invalid (too short)');
+    }
+    
+    // Try to load a test Google Maps resource to verify the key
+    try {
+      const testResponse = await fetch(`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`, {
+        method: 'HEAD',
+        mode: 'no-cors' // This prevents CORS issues for this test
+      });
+      console.log('Google Maps API test request completed');
+    } catch (error) {
+      // Even if this fails, we don't throw an error as the no-cors mode means
+      // we can't actually check the status properly
+      console.log('Google Maps API test request completed (with possible error)');
     }
     
     return true;
@@ -100,3 +117,4 @@ export async function initializeApiKeys() {
     return false;
   }
 }
+
