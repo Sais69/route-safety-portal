@@ -1,3 +1,4 @@
+
 import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const navigate = useNavigate();
 
   // Admin check logic with specific credentials (trayectolabs@gmail.com)
   const checkAdminStatus = (currentUser: User | null) => {
@@ -66,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (event === 'SIGNED_OUT') {
             setTimeout(() => {
               toast.info("Sesión cerrada");
+              navigate('/');
             }, 0);
           }
         }
@@ -84,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -162,11 +165,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
       
+      // Navigate to home page after signing out
+      navigate('/');
       toast.info("Sesión cerrada correctamente");
       
     } catch (error: any) {
       console.error("Error signing out:", error);
       toast.error(error.message || 'Error al cerrar sesión');
+      // Still navigate to home even if there's an error
+      navigate('/');
     } finally {
       setIsLoading(false);
     }

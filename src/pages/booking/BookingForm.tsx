@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,7 @@ import { Clock, MapPin, ArrowRight, RotateCw, CalendarRange } from 'lucide-react
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
+import { useNavigate } from 'react-router-dom';
 
 interface BookingFormProps {
   vehicleType: string;
@@ -74,6 +74,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   returnDuration
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData>({
     name: "",
     email: "",
@@ -177,6 +178,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
       // Format the booking data for Supabase
       const bookingData: BookingInsert = {
         user_id: user.id,
+        user_email: user.email || userData.email,
+        user_metadata: {
+          first_name: userData.name.split(' ')[0] || '',
+          last_name: userData.name.split(' ').slice(1).join(' ') || '',
+          phone: userData.phone,
+          full_name: userData.name
+        },
         origin: originPlace,
         destination: destinationPlace,
         origin_coords: origin as any,
@@ -209,8 +217,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
         throw error;
       }
       
-      toast.success('¡Reserva realizada con éxito!');
-      
       // Also save to localStorage for backward compatibility
       const existingBookings = localStorage.getItem('bookings');
       let bookings = existingBookings ? JSON.parse(existingBookings) : [];
@@ -225,6 +231,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
       
       bookings.push(newBooking);
       localStorage.setItem('bookings', JSON.stringify(bookings));
+      
+      toast.success('¡Reserva realizada con éxito!');
+      navigate('/mis-reservas');
       
     } catch (error: any) {
       console.error('Error al guardar la reserva:', error);

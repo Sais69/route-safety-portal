@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -186,7 +187,7 @@ const AdminPage: React.FC = () => {
   const fetchBookings = async () => {
     setIsLoading(true);
     try {
-      // Try to get bookings from Supabase first
+      // Use the get_all_bookings function to retrieve all bookings
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
@@ -201,6 +202,7 @@ const AdminPage: React.FC = () => {
       
       // Process Supabase bookings if available
       if (data && data.length > 0) {
+        console.log('Fetched bookings:', data.length);
         allBookings = data.map((booking: any) => ({
           id: booking.id,
           userData: {
@@ -770,4 +772,594 @@ const AdminPage: React.FC = () => {
                           <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
                             <SelectValue placeholder="Todos los estados" />
                           </SelectTrigger>
-                          <SelectContent className="bg-slate-
+                          <SelectContent className="bg-slate-800 border-blue-500/30 text-white">
+                            <SelectItem value="all">Todos los estados</SelectItem>
+                            <SelectItem value="pendiente">Pendiente</SelectItem>
+                            <SelectItem value="designada">Designada</SelectItem>
+                            <SelectItem value="en curso">En curso</SelectItem>
+                            <SelectItem value="realizada">Realizada</SelectItem>
+                            <SelectItem value="negada">Negada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* User filter */}
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Usuario</label>
+                        <Select 
+                          value={filters.userEmail}
+                          onValueChange={(value) => setFilters({...filters, userEmail: value})}
+                        >
+                          <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
+                            <SelectValue placeholder="Todos los usuarios" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-blue-500/30 text-white">
+                            <SelectItem value="">Todos los usuarios</SelectItem>
+                            {uniqueUsers.map(email => (
+                              <SelectItem key={email} value={email}>{email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardHeader>
+              
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-gray-400">Cargando reservas...</p>
+                  </div>
+                ) : filteredBookings.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <p className="text-gray-400">No hay reservas que coincidan con los filtros</p>
+                    <Button 
+                      variant="link"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setShowUnassignedOnly(false);
+                        resetFilters();
+                      }}
+                      className="mt-2 text-blue-400"
+                    >
+                      Borrar filtros
+                    </Button>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader className="bg-slate-800/60">
+                      <TableRow className="hover:bg-slate-700/50 border-blue-500/20">
+                        <TableHead className="text-blue-200">Usuario</TableHead>
+                        <TableHead className="text-blue-200">Ruta</TableHead>
+                        <TableHead className="text-blue-200 hidden md:table-cell">Fecha</TableHead>
+                        <TableHead className="text-blue-200 hidden md:table-cell">Estado</TableHead>
+                        <TableHead className="text-blue-200 hidden md:table-cell">Conductor</TableHead>
+                        <TableHead className="text-blue-200">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredBookings.map((booking) => (
+                        <TableRow key={booking.id} className="hover:bg-slate-800/60 border-blue-500/10">
+                          <TableCell className="align-top">
+                            <div>
+                              <p className="font-medium text-white">{booking.userData.name}</p>
+                              <p className="text-sm text-gray-400">{booking.userData.email}</p>
+                              <p className="text-xs text-gray-400">{booking.userData.phone}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div>
+                              <div className="flex items-center">
+                                <MapPin className="h-3 w-3 text-blue-400 mr-1" /> 
+                                <p className="text-sm text-gray-300">{booking.origin}</p>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                <MapPin className="h-3 w-3 text-red-400 mr-1" fill="currentColor" /> 
+                                <p className="text-sm text-gray-300">{booking.destination}</p>
+                              </div>
+                              <div className="mt-1 flex items-center space-x-1">
+                                <Badge variant="outline" className="text-xs text-white border-blue-500/20 bg-blue-900/20">{booking.vehicleType}</Badge>
+                                <Badge variant="outline" className="text-xs text-white border-blue-500/20 bg-blue-900/20">{booking.distance.toFixed(1)} km</Badge>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top hidden md:table-cell">
+                            <div>
+                              <p className="text-sm text-gray-300">{formatDate(booking.departureDate)}</p>
+                              <p className="text-xs text-gray-400">{booking.departureTime}</p>
+                              {booking.returnDate && (
+                                <div className="mt-1 border-t border-gray-800 pt-1">
+                                  <p className="text-xs text-gray-400">Retorno:</p>
+                                  <p className="text-sm text-gray-300">{formatDate(booking.returnDate)}</p>
+                                  <p className="text-xs text-gray-400">{booking.returnTime}</p>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top hidden md:table-cell">
+                            <Badge className={`flex items-center ${getStatusBadgeClass(booking.status)}`}>
+                              {getStatusIcon(booking.status)}
+                              {booking.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="align-top hidden md:table-cell">
+                            {booking.id_conductor ? (
+                              <div className="space-y-1">
+                                <p className="text-sm text-white">{booking.nombre_conductor}</p>
+                                <div className="flex items-center text-xs text-gray-400">
+                                  <CarTaxiFront className="h-3 w-3 mr-1" />
+                                  {booking.placa_vehiculo} - {booking.modelo_vehiculo}
+                                </div>
+                                <div className="flex items-center text-xs text-gray-400">
+                                  <Phone className="h-3 w-3 mr-1" />
+                                  {booking.numero_celular_conductor}
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline" 
+                                size="sm"
+                                className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-900/30"
+                                onClick={() => {
+                                  setBookingForDriverAssign(booking);
+                                  setIsDriverAssignDialogOpen(true);
+                                }}
+                              >
+                                <UserPlus className="h-3 w-3 mr-1" />
+                                Asignar conductor
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex flex-col space-y-2">
+                              {/* Status Update Dropdown */}
+                              <Select 
+                                value={booking.status}
+                                onValueChange={(value) => 
+                                  updateBookingStatus(booking.id, value as 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada')
+                                }
+                              >
+                                <SelectTrigger className="w-32 h-8 text-xs bg-slate-800/60 border-blue-500/30">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-800 border-blue-500/30 text-white">
+                                  <SelectItem value="pendiente">Pendiente</SelectItem>
+                                  <SelectItem value="designada">Designada</SelectItem>
+                                  <SelectItem value="en curso">En curso</SelectItem>
+                                  <SelectItem value="realizada">Realizada</SelectItem>
+                                  <SelectItem value="negada">Negada</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              {/* Driver button (only shown on mobile) */}
+                              <div className="block md:hidden">
+                                {booking.id_conductor ? (
+                                  <Button
+                                    variant="outline" 
+                                    size="sm"
+                                    className="w-32 h-8 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-900/30"
+                                    onClick={() => {
+                                      setBookingForDriverAssign(booking);
+                                      setIsDriverAssignDialogOpen(true);
+                                    }}
+                                  >
+                                    <UserCog className="h-3 w-3 mr-1" />
+                                    Ver conductor
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline" 
+                                    size="sm"
+                                    className="w-32 h-8 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-900/30"
+                                    onClick={() => {
+                                      setBookingForDriverAssign(booking);
+                                      setIsDriverAssignDialogOpen(true);
+                                    }}
+                                  >
+                                    <UserPlus className="h-3 w-3 mr-1" />
+                                    Asignar conductor
+                                  </Button>
+                                )}
+                              </div>
+                              
+                              {/* Action buttons */}
+                              <div className="flex space-x-1">
+                                <a 
+                                  href={generateRouteLink(booking.origin, booking.destination, booking.intermediate_stops)} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 bg-slate-800/60 border border-blue-500/30 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                                
+                                <Button 
+                                  variant="outline" 
+                                  size="icon"
+                                  className="h-8 w-8 border-red-500/30 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+                                  onClick={() => confirmDelete(booking.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="drivers" className="space-y-4">
+            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between">
+                  <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Conductores</CardTitle>
+                  <Button 
+                    onClick={() => {
+                      setCurrentDriver(null);
+                      setIsDriverDialogOpen(true);
+                    }} 
+                    className="mt-4 md:mt-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" /> Agregar conductor
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {drivers.length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-gray-400">No hay conductores registrados</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader className="bg-slate-800/60">
+                      <TableRow className="hover:bg-slate-700/50 border-blue-500/20">
+                        <TableHead className="text-blue-200">Nombre</TableHead>
+                        <TableHead className="text-blue-200">Contacto</TableHead>
+                        <TableHead className="text-blue-200">Vehículo</TableHead>
+                        <TableHead className="text-blue-200">Disponible</TableHead>
+                        <TableHead className="text-blue-200">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {drivers.map((driver) => (
+                        <TableRow key={driver.id} className="hover:bg-slate-800/60 border-blue-500/10">
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-white">{driver.nombre} {driver.apellido}</p>
+                              <p className="text-xs text-gray-400">ID: {driver.id.substring(0, 8)}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Phone className="h-4 w-4 text-blue-400 mr-2" /> 
+                              <p className="text-sm text-gray-300">{driver.numero_celular}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm text-gray-300">{driver.modelo_vehiculo}</p>
+                              <p className="text-xs text-gray-400">Placa: {driver.placa_vehiculo}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={driver.disponible 
+                              ? 'bg-green-900/30 text-green-300 border-green-500/30' 
+                              : 'bg-red-900/30 text-red-300 border-red-500/30'}>
+                              {driver.disponible ? 'Disponible' : 'No disponible'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-1">
+                              <Button
+                                variant="outline" 
+                                size="icon"
+                                className="h-8 w-8 border-blue-500/30 text-blue-400 hover:bg-blue-900/30 hover:text-blue-300"
+                                onClick={() => {
+                                  setCurrentDriver(driver);
+                                  setIsDriverDialogOpen(true);
+                                }}
+                              >
+                                <UserCog className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="icon"
+                                className="h-8 w-8 border-red-500/30 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+                                onClick={() => {
+                                  setDriverToDelete(driver.id);
+                                  setIsDriverDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="customers" className="space-y-4">
+            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+              <CardHeader>
+                <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Clientes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center py-8">
+                  <p className="text-gray-400">Función en desarrollo</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="reports" className="space-y-4">
+            <Card className="bg-slate-900/60 border border-blue-500/20 backdrop-blur-xl shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+              <CardHeader>
+                <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Informes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center py-8">
+                  <p className="text-gray-400">Función en desarrollo</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+      
+      {/* Driver form dialog */}
+      <Dialog open={isDriverDialogOpen} onOpenChange={setIsDriverDialogOpen}>
+        <DialogContent className="bg-slate-900 border border-blue-500/20 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>{currentDriver ? 'Editar conductor' : 'Agregar nuevo conductor'}</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {currentDriver 
+                ? 'Actualice la información del conductor' 
+                : 'Complete los datos para registrar un nuevo conductor'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre">Nombre</Label>
+                <Input 
+                  id="nombre" 
+                  className="bg-slate-800 border-blue-500/30"
+                  defaultValue={currentDriver?.nombre || ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="apellido">Apellido</Label>
+                <Input 
+                  id="apellido" 
+                  className="bg-slate-800 border-blue-500/30"
+                  defaultValue={currentDriver?.apellido || ''}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="celular">Número de celular</Label>
+              <Input 
+                id="celular" 
+                className="bg-slate-800 border-blue-500/30"
+                defaultValue={currentDriver?.numero_celular || ''}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="modelo">Modelo de vehículo</Label>
+              <Input 
+                id="modelo" 
+                className="bg-slate-800 border-blue-500/30"
+                defaultValue={currentDriver?.modelo_vehiculo || ''}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="placa">Placa de vehículo</Label>
+              <Input 
+                id="placa" 
+                className="bg-slate-800 border-blue-500/30"
+                defaultValue={currentDriver?.placa_vehiculo || ''}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="disponible"
+                defaultChecked={currentDriver?.disponible !== false}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="disponible">Disponible para asignar</Label>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-blue-500/30 text-blue-400">
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={() => {
+                const nombre = (document.getElementById('nombre') as HTMLInputElement).value;
+                const apellido = (document.getElementById('apellido') as HTMLInputElement).value;
+                const celular = (document.getElementById('celular') as HTMLInputElement).value;
+                const modelo = (document.getElementById('modelo') as HTMLInputElement).value;
+                const placa = (document.getElementById('placa') as HTMLInputElement).value;
+                const disponible = (document.getElementById('disponible') as HTMLInputElement).checked;
+                
+                if (!nombre || !apellido || !celular || !modelo || !placa) {
+                  toast.error('Todos los campos son obligatorios');
+                  return;
+                }
+                
+                saveDriver({
+                  id: currentDriver?.id,
+                  nombre,
+                  apellido,
+                  numero_celular: celular,
+                  modelo_vehiculo: modelo,
+                  placa_vehiculo: placa,
+                  disponible
+                });
+              }}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
+            >
+              {currentDriver ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Driver assignment dialog */}
+      <Dialog open={isDriverAssignDialogOpen} onOpenChange={setIsDriverAssignDialogOpen}>
+        <DialogContent className="bg-slate-900 border border-blue-500/20 text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {bookingForDriverAssign?.id_conductor 
+                ? 'Información del conductor asignado'
+                : 'Asignar conductor'}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {bookingForDriverAssign?.id_conductor
+                ? 'El conductor ya ha sido asignado a esta reserva'
+                : 'Seleccione un conductor para asignar a la reserva'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {bookingForDriverAssign?.id_conductor ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium text-white">{bookingForDriverAssign.nombre_conductor}</h3>
+                <p className="text-sm text-gray-400">{bookingForDriverAssign.numero_celular_conductor}</p>
+              </div>
+              
+              <div className="border-t border-gray-800 pt-3">
+                <h4 className="text-sm font-medium text-gray-300">Información del vehículo</h4>
+                <p className="text-gray-400">{bookingForDriverAssign.modelo_vehiculo}</p>
+                <p className="text-gray-400">Placa: {bookingForDriverAssign.placa_vehiculo}</p>
+              </div>
+              
+              <Button
+                onClick={() => removeDriverFromBooking(bookingForDriverAssign.id)}
+                variant="outline"
+                className="w-full border-red-500/30 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+              >
+                Remover asignación
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="h-60 overflow-auto pr-2">
+                {drivers
+                  .filter(driver => driver.disponible)
+                  .length === 0 ? (
+                  <div className="flex justify-center py-8">
+                    <p className="text-gray-400">No hay conductores disponibles</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {drivers
+                      .filter(driver => driver.disponible)
+                      .map(driver => (
+                      <div 
+                        key={driver.id} 
+                        className="p-3 border border-blue-500/20 rounded-md hover:bg-slate-800/60 cursor-pointer"
+                        onClick={() => {
+                          if (bookingForDriverAssign) {
+                            assignDriverToBooking(bookingForDriverAssign.id, driver.id);
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between">
+                          <div>
+                            <p className="font-medium text-white">{driver.nombre} {driver.apellido}</p>
+                            <p className="text-sm text-gray-400">{driver.numero_celular}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-300">{driver.modelo_vehiculo}</p>
+                            <p className="text-xs text-gray-400">{driver.placa_vehiculo}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="border-blue-500/30 text-blue-400">
+                Cerrar
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 border border-red-500/20 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de eliminar esta reserva?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Esta acción no se puede deshacer y eliminará permanentemente la reserva.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-700 text-gray-400">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bookingToDelete && handleDeleteBooking(bookingToDelete)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Driver delete confirmation dialog */}
+      <AlertDialog open={isDriverDeleteDialogOpen} onOpenChange={setIsDriverDeleteDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 border border-red-500/20 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de eliminar este conductor?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Esta acción no se puede deshacer y eliminará permanentemente el conductor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-gray-700 text-gray-400">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => driverToDelete && handleDeleteDriver(driverToDelete)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default AdminPage;
