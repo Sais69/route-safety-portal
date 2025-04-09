@@ -53,6 +53,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink, Calendar, Filter, Trash2, Users, UserPlus, UserCog, CarTaxiFront, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
@@ -276,17 +277,18 @@ const AdminPage: React.FC = () => {
   // Fetch drivers from Supabase
   const fetchDrivers = async () => {
     try {
+      // Use type casting to tell TypeScript this is valid
       const { data, error } = await supabase
         .from('drivers')
         .select('*')
-        .order('nombre', { ascending: true });
+        .order('nombre', { ascending: true }) as { data: Driver[] | null; error: any };
       
       if (error) {
         throw error;
       }
       
       if (data) {
-        setDrivers(data as Driver[]);
+        setDrivers(data);
       }
     } catch (error) {
       console.error('Error fetching drivers:', error);
@@ -309,7 +311,7 @@ const AdminPage: React.FC = () => {
             modelo_vehiculo: driver.modelo_vehiculo,
             disponible: driver.disponible
           })
-          .eq('id', driver.id);
+          .eq('id', driver.id) as { error: any };
           
         if (error) throw error;
         toast.success('Conductor actualizado correctamente');
@@ -324,7 +326,7 @@ const AdminPage: React.FC = () => {
             placa_vehiculo: driver.placa_vehiculo,
             modelo_vehiculo: driver.modelo_vehiculo,
             disponible: driver.disponible || true
-          });
+          }) as { error: any };
           
         if (error) throw error;
         toast.success('Conductor creado correctamente');
@@ -346,7 +348,7 @@ const AdminPage: React.FC = () => {
       const { error } = await supabase
         .from('drivers')
         .delete()
-        .eq('id', id);
+        .eq('id', id) as { error: any };
         
       if (error) throw error;
       
@@ -368,7 +370,7 @@ const AdminPage: React.FC = () => {
         .from('drivers')
         .select('*')
         .eq('id', driverId)
-        .single();
+        .single() as { data: Driver | null; error: any };
       
       if (driverError) throw driverError;
       

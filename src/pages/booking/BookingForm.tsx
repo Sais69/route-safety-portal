@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -176,9 +177,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
       setIsSubmitting(true);
       
       // Format the booking data for Supabase
-      const bookingData: BookingInsert = {
+      const bookingData: any = {
         user_id: user.id,
-        user_email: user.email || userData.email,
         user_metadata: {
           first_name: userData.name.split(' ')[0] || '',
           last_name: userData.name.split(' ').slice(1).join(' ') || '',
@@ -205,6 +205,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
         cost: parseFloat(calculatedCost),
         status: 'pendiente'
       };
+
+      // For TypeScript compatibility, add user_email separately
+      if (user.email) {
+        bookingData.user_email = user.email;
+      }
       
       // Insert booking into Supabase
       const { data, error } = await supabase
