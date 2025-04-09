@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -131,9 +130,17 @@ const MyBookings = () => {
     toast.success("Reservas actualizadas");
   };
 
-  // Generate Google Maps route link
-  const generateRouteLink = (origin: string, destination: string) => {
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+  // Generate Google Maps route link with waypoints
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    
+    // Add waypoints if there are intermediate stops
+    if (intermediateStops && intermediateStops.length > 0) {
+      const waypoints = intermediateStops.map(stop => encodeURIComponent(stop.placeName)).join('|');
+      url += `&waypoints=${waypoints}`;
+    }
+    
+    return url;
   };
 
   const pendingBookings = bookings.filter(booking => booking.status === 'pendiente' || booking.status === 'designada');
@@ -336,9 +343,17 @@ const MyBookings = () => {
 };
 
 const BookingCard = ({ booking }: { booking: Booking }) => {
-  // Generate Google Maps route link
-  const generateRouteLink = (origin: string, destination: string) => {
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+  // Generate Google Maps route link with waypoints
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    
+    // Add waypoints if there are intermediate stops
+    if (intermediateStops && intermediateStops.length > 0) {
+      const waypoints = intermediateStops.map(stop => encodeURIComponent(stop.placeName)).join('|');
+      url += `&waypoints=${waypoints}`;
+    }
+    
+    return url;
   };
   
   const getStatusBadgeClass = (status: string) => {
@@ -396,6 +411,7 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
   const formattedDate = formatDate(booking.departure_date || (booking.departureDate as string));
   const departureTime = booking.departure_time || booking.departureTime;
   const vehicleType = booking.vehicle_type || booking.vehicleType;
+  const intermediateStops = booking.intermediate_stops || [];
 
   return (
     <Card className={`glass-card bg-slate-900/50 overflow-hidden border ${getBorderColor(booking.status)} backdrop-blur-sm hover:bg-slate-800/50 transition-colors`}>
@@ -438,11 +454,23 @@ const BookingCard = ({ booking }: { booking: Booking }) => {
               </div>
             </div>
           </div>
+          
+          {/* Display intermediate stops if they exist */}
+          {intermediateStops && intermediateStops.length > 0 && (
+            <div className="mt-2 p-2 bg-slate-800/40 rounded-md border border-blue-500/10">
+              <h4 className="text-sm font-medium text-blue-400 mb-1">Paradas intermedias:</h4>
+              <ul className="list-disc list-inside">
+                {intermediateStops.map((stop, idx) => (
+                  <li key={stop.id || idx} className="text-sm text-gray-300">{stop.placeName}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Route link for Google Maps */}
           <div className="mt-2">
             <a 
-              href={generateRouteLink(booking.origin, booking.destination)} 
+              href={generateRouteLink(booking.origin, booking.destination, intermediateStops)} 
               target="_blank" 
               rel="noopener noreferrer"
               className="text-sm flex items-center text-blue-400 hover:text-blue-300 transition-colors"

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -62,7 +61,18 @@ interface Booking {
   distance: number;
   duration?: string;
   createdAt: string;
+  intermediate_stops?: Array<{
+    id: string;
+    placeName: string;
+    location: google.maps.LatLngLiteral;
+  }>;
 }
+
+// Admin credentials (in a real app, these would be stored server-side)
+const ADMIN_CREDENTIALS = {
+  username: 'Trayectotec',
+  password: 'Trayectotec2025'
+};
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,9 +90,11 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (user) {
-        // Check if the user is an admin (email ends with @admin.com for this demo)
-        // In a real app, you would check against admin roles in your database
-        if (user.email && user.email.endsWith('@admin.com')) {
+        // Check predefined admin credentials or if the user's email ends with @admin.com
+        if (
+          (user.email && user.email.endsWith('@admin.com')) || 
+          (user.user_metadata?.first_name === ADMIN_CREDENTIALS.username) 
+        ) {
           setIsAdmin(true);
           await fetchBookings();
         } else {
@@ -131,7 +143,8 @@ const AdminPage: React.FC = () => {
           cost: booking.cost,
           distance: booking.distance,
           duration: booking.duration,
-          createdAt: booking.created_at
+          createdAt: booking.created_at,
+          intermediate_stops: booking.intermediate_stops || []
         }));
       }
 
@@ -173,8 +186,16 @@ const AdminPage: React.FC = () => {
     e.preventDefault();
     
     try {
-      await signIn(username, password);
-      // The useEffect will check if user is admin after login
+      // Check predefined admin credentials
+      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+        // Use the signIn function if available, or set admin flag directly
+        await signIn(username, password);
+        setIsAdmin(true);
+        await fetchBookings();
+      } else {
+        // Try normal sign in for backwards compatibility
+        await signIn(username, password);
+      }
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Credenciales incorrectas');
@@ -190,27 +211,53 @@ const AdminPage: React.FC = () => {
   );
 
   // Update booking status
-  const updateBookingStatus = (id: string, newStatus: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada') => {
-    const updatedBookings = bookings.map(booking => 
-      booking.id === id ? { ...booking, status: newStatus } : booking
-    );
-    
-    setBookings(updatedBookings);
-    localStorage.setItem('bookings', JSON.stringify(updatedBookings));
-    
-    // Update statistics
-    setCompletedBookings(updatedBookings.filter(b => b.status === 'realizada').length);
-    const totalDist = updatedBookings
-      .filter(booking => booking.status === 'realizada')
-      .reduce((total, booking) => total + booking.distance, 0);
-    setTotalDistance(totalDist);
-    
-    toast.success(`Estado de reserva actualizado a: ${newStatus}`);
+  const updateBookingStatus = async (id: string, newStatus: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada') => {
+    try {
+      // Update in Supabase if available
+      if (supabase) {
+        const { error } = await supabase
+          .from('bookings')
+          .update({ status: newStatus })
+          .eq('id', id);
+          
+        if (error) {
+          throw error;
+        }
+      }
+      
+      // Update local state
+      const updatedBookings = bookings.map(booking => 
+        booking.id === id ? { ...booking, status: newStatus } : booking
+      );
+      
+      setBookings(updatedBookings);
+      localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+      
+      // Update statistics
+      setCompletedBookings(updatedBookings.filter(b => b.status === 'realizada').length);
+      const totalDist = updatedBookings
+        .filter(booking => booking.status === 'realizada')
+        .reduce((total, booking) => total + booking.distance, 0);
+      setTotalDistance(totalDist);
+      
+      toast.success(`Estado de reserva actualizado a: ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating booking status:', error);
+      toast.error('Error al actualizar el estado de la reserva');
+    }
   };
 
   // Generate route link for Google Maps
-  const generateRouteLink = (origin: string, destination: string) => {
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    
+    // Add waypoints if there are intermediate stops
+    if (intermediateStops && intermediateStops.length > 0) {
+      const waypoints = intermediateStops.map(stop => encodeURIComponent(stop.placeName)).join('|');
+      url += `&waypoints=${waypoints}`;
+    }
+    
+    return url;
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -256,15 +303,15 @@ const AdminPage: React.FC = () => {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium text-gray-300">Correo electrónico</label>
+                <label htmlFor="username" className="text-sm font-medium text-gray-300">Usuario</label>
                 <Input 
                   id="username" 
-                  type="email"
+                  type="text"
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
                   required
                   className="bg-slate-800/60 border-blue-500/30 text-white"
-                  placeholder="admin@admin.com"
+                  placeholder="Trayectotec"
                 />
               </div>
               <div className="space-y-2">
@@ -301,6 +348,7 @@ const AdminPage: React.FC = () => {
     );
   }
 
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-slate-900 p-4 md:p-8">
       <div className="absolute inset-0 grid-lines opacity-20"></div>
@@ -433,13 +481,23 @@ const AdminPage: React.FC = () => {
                               <span className="flex items-center">
                                 <MapPin className="h-3 w-3 mr-1 text-blue-400" fill="currentColor" /> {booking.destination}
                               </span>
+                              {booking.intermediate_stops && booking.intermediate_stops.length > 0 && (
+                                <div className="ml-4 mt-1">
+                                  <span className="text-xs text-blue-300">Paradas intermedias:</span>
+                                  <ul className="list-disc list-inside text-xs text-gray-400">
+                                    {booking.intermediate_stops.map((stop, idx) => (
+                                      <li key={stop.id || idx}>{stop.placeName}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                               {booking.duration && (
                                 <span className="text-xs text-gray-400 mt-1">
                                   <Clock className="h-3 w-3 inline mr-1" /> {booking.duration}
                                 </span>
                               )}
                               <a 
-                                href={generateRouteLink(booking.origin, booking.destination)} 
+                                href={generateRouteLink(booking.origin, booking.destination, booking.intermediate_stops)} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="text-xs flex items-center mt-1 text-blue-400 hover:text-blue-300"
@@ -460,7 +518,9 @@ const AdminPage: React.FC = () => {
                                 <CalendarRange className="h-3 w-3 mr-1 text-gray-400" /> 
                                 {booking.departureDate instanceof Date 
                                   ? booking.departureDate.toISOString().split('T')[0]
-                                  : booking.departureDate}
+                                  : typeof booking.departureDate === 'string' 
+                                    ? booking.departureDate.split('T')[0]
+                                    : booking.departureDate}
                               </span>
                               <span className="flex items-center">
                                 <Clock className="h-3 w-3 mr-1 text-gray-400" /> {booking.departureTime}

@@ -123,7 +123,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         directionsRenderer.setMap(null);
       }
     };
-  }, [isReloadingMap]);
+  }, [isReloadingMap]); 
 
   // Calculate route with directions
   const calculateRouteWithDirections = (
@@ -134,7 +134,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
       placeName: string;
       location: google.maps.LatLngLiteral;
     }>,
-    onSuccess: (distance: number) => void,
+    onSuccess: (distance: number, duration: string) => void,
     onError: () => void
   ) => {
     if (!window.google || !origin || !destination || !directionsRenderer) return;
@@ -159,14 +159,29 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         if (status === google.maps.DirectionsStatus.OK && result) {
           directionsRenderer.setDirections(result);
 
-          // Calculate total distance
+          // Calculate total distance and duration
           let totalDistance = 0;
+          let totalDurationValue = 0;
+          let formattedDuration = "";
+          
           const legs = result.routes[0].legs;
           for (let i = 0; i < legs.length; i++) {
             totalDistance += legs[i].distance.value;
+            totalDurationValue += legs[i].duration.value;
           }
+          
+          // Format duration in hours and minutes
+          const hours = Math.floor(totalDurationValue / 3600);
+          const minutes = Math.floor((totalDurationValue % 3600) / 60);
+          
+          if (hours > 0) {
+            formattedDuration = `${hours}h ${minutes}m`;
+          } else {
+            formattedDuration = `${minutes}m`;
+          }
+          
           // Convert meters to kilometers
-          onSuccess(totalDistance / 1000);
+          onSuccess(totalDistance / 1000, formattedDuration);
         } else {
           console.error('Directions request failed with status: ', status);
           onError();
@@ -175,12 +190,26 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
     );
   };
 
+  // Generate Google Maps route link with waypoints
+  const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    
+    // Add waypoints if there are intermediate stops
+    if (intermediateStops && intermediateStops.length > 0) {
+      const waypoints = intermediateStops.map(stop => encodeURIComponent(stop.placeName)).join('|');
+      url += `&waypoints=${waypoints}`;
+    }
+    
+    return url;
+  };
+
   return {
     map,
     directionsRenderer,
     mapInitError,
     setMapInitError,
-    calculateRouteWithDirections
+    calculateRouteWithDirections,
+    generateRouteLink
   };
 };
 
