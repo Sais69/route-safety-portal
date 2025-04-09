@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -107,8 +108,17 @@ export function BookingForm({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [departureDateState, setDepartureDateState] = React.useState<Date | undefined>(new Date());
-  const [returnDateState, setReturnDateState] = React.useState<Date | undefined>(new Date());
+  const [departureDateState, setDepartureDateState] = React.useState<Date | undefined>(departureDate);
+  const [returnDateState, setReturnDateState] = React.useState<Date | undefined>(returnDate);
+
+  // Asegurar que los estados locales se actualicen cuando cambien las props
+  React.useEffect(() => {
+    setDepartureDateState(departureDate);
+  }, [departureDate]);
+
+  React.useEffect(() => {
+    setReturnDateState(returnDate);
+  }, [returnDate]);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -120,11 +130,17 @@ export function BookingForm({
       returnDate: returnDate || new Date(),
       returnTime: returnTime || "18:00",
       roundTrip: roundTrip || false,
-      vehicleType: vehicleType || "taxi",
+      vehicleType: vehicleType || "furgoneta",
       passengerCount: "1",
       comments: "",
     },
   });
+
+  // Actualizar el formulario cuando cambian las props
+  React.useEffect(() => {
+    form.setValue("origin", origin || "");
+    form.setValue("destination", destination || "");
+  }, [form, origin, destination]);
 
   async function handleSubmit(values: z.infer<typeof FormSchema>) {
     setIsLoading(true);
@@ -193,144 +209,119 @@ export function BookingForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <FormField
-              control={form.control}
-              name="origin"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Origen</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingresa tu origen" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div>
-            <FormField
-              control={form.control}
-              name="destination"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destino</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ingresa tu destino" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <FormField
-              control={form.control}
-              name="departureDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Fecha de Salida</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-[240px] pl-3 text-left font-normal",
-                            !departureDateState && "text-muted-foreground"
-                          )}
-                        >
-                          {departureDateState ? (
-                            format(departureDateState, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={departureDateState}
-                        onSelect={setDepartureDateState}
-                        disabled={(date) =>
-                          date < new Date()
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <div>
-            <FormField
-              control={form.control}
-              name="departureTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hora de Salida</FormLabel>
-                  <FormControl>
-                    <Input type="time" defaultValue="08:00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        <FormField
-          control={form.control}
-          name="roundTrip"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Viaje de Ida y Vuelta</FormLabel>
-                <FormDescription>
-                  Selecciona si necesitas un viaje de ida y vuelta.
-                </FormDescription>
+        {/* Sección de costos e información del viaje */}
+        <div className="glass-card bg-slate-900/50 p-6 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] mb-6">
+          <h2 className="text-xl font-semibold mb-4 text-white">Información del Viaje</h2>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-400">Distancia</p>
+                <p className="text-lg font-medium text-white">{distance.toFixed(2)} km</p>
               </div>
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+              <div>
+                <p className="text-sm text-gray-400">Duración</p>
+                <p className="text-lg font-medium text-white">{duration}</p>
+              </div>
+            </div>
+            
+            {roundTrip && (
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-blue-500/20">
+                <div>
+                  <p className="text-sm text-gray-400">Distancia de vuelta</p>
+                  <p className="text-lg font-medium text-white">{returnDistance.toFixed(2)} km</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-400">Duración de vuelta</p>
+                  <p className="text-lg font-medium text-white">{returnDuration}</p>
+                </div>
+              </div>
+            )}
 
-        {form.watch("roundTrip") && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
+            <div className="pt-2 border-t border-blue-500/20">
+              <p className="text-sm text-gray-400">Tipo de vehículo</p>
               <FormField
                 control={form.control}
-                name="returnDate"
+                name="vehicleType"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setVehicleType(value);
+                      }} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecciona un tipo de vehículo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="furgoneta">Furgoneta (17 pasajeros)</SelectItem>
+                        <SelectItem value="microbus">Microbús (28 pasajeros)</SelectItem>
+                        <SelectItem value="bus">Bus (40 pasajeros)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 mt-2 border-t border-blue-500/20">
+              <FormField
+                control={form.control}
+                name="roundTrip"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          setRoundTrip(!!checked);
+                        }}
+                      />
+                    </FormControl>
+                    <FormLabel className="text-white cursor-pointer">Ida y vuelta</FormLabel>
+                  </FormItem>
+                )}
+              />
+              <div>
+                <p className="text-sm text-gray-400">Costo total</p>
+                <p className="text-2xl font-bold text-white">${totalCost.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Fechas y Horarios */}
+        <div className="glass-card bg-slate-900/50 p-6 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] mb-4">
+          <h2 className="text-xl font-semibold mb-4 text-white">Fecha y Hora</h2>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <FormField
+                control={form.control}
+                name="departureDate"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Fecha de Regreso</FormLabel>
+                    <FormLabel>Fecha de Salida</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
                             variant={"outline"}
                             className={cn(
-                              "w-[240px] pl-3 text-left font-normal",
-                              !returnDateState && "text-muted-foreground"
+                              "w-full pl-3 text-left font-normal",
+                              !departureDateState && "text-muted-foreground"
                             )}
                           >
-                            {returnDateState ? (
-                              format(returnDateState, "PPP")
+                            {departureDateState ? (
+                              format(departureDateState, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Selecciona una fecha</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -339,10 +330,13 @@ export function BookingForm({
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={returnDateState}
-                          onSelect={setReturnDateState}
+                          selected={departureDateState}
+                          onSelect={(date) => {
+                            setDepartureDateState(date);
+                            if (date) setDepartureDate(date);
+                          }}
                           disabled={(date) =>
-                            date < new Date() || (departureDateState && date < departureDateState)
+                            date < new Date()
                           }
                           initialFocus
                         />
@@ -356,12 +350,20 @@ export function BookingForm({
             <div>
               <FormField
                 control={form.control}
-                name="returnTime"
+                name="departureTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hora de Regreso</FormLabel>
+                    <FormLabel>Hora de Salida</FormLabel>
                     <FormControl>
-                      <Input type="time" defaultValue="18:00" {...field} />
+                      <Input 
+                        type="time" 
+                        defaultValue="08:00" 
+                        {...field} 
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setDepartureTime(e.target.value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -369,33 +371,86 @@ export function BookingForm({
               />
             </div>
           </div>
-        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <FormField
-              control={form.control}
-              name="vehicleType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Vehículo</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un tipo de vehículo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="taxi">Taxi</SelectItem>
-                      <SelectItem value="van">Van</SelectItem>
-                      <SelectItem value="bus">Bus</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {form.watch("roundTrip") && (
+            <div className="grid grid-cols-2 gap-6 mt-4 pt-4 border-t border-blue-500/20">
+              <div>
+                <FormField
+                  control={form.control}
+                  name="returnDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Fecha de Regreso</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !returnDateState && "text-muted-foreground"
+                              )}
+                            >
+                              {returnDateState ? (
+                                format(returnDateState, "PPP")
+                              ) : (
+                                <span>Selecciona una fecha</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={returnDateState}
+                            onSelect={(date) => {
+                              setReturnDateState(date);
+                              if (date) setReturnDate(date);
+                            }}
+                            disabled={(date) =>
+                              date < new Date() || (departureDateState && date < departureDateState)
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div>
+                <FormField
+                  control={form.control}
+                  name="returnTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora de Regreso</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="time" 
+                          defaultValue="18:00" 
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setReturnTime(e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Información de pasajeros */}
+        <div className="glass-card bg-slate-900/50 p-6 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] mb-4">
+          <h2 className="text-xl font-semibold mb-4 text-white">Detalles del Viaje</h2>
+
           <div>
             <FormField
               control={form.control}
@@ -410,7 +465,7 @@ export function BookingForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => (
+                      {Array.from({ length: 40 }, (_, i) => i + 1).map((num) => (
                         <SelectItem key={num} value={num.toString()}>
                           {num}
                         </SelectItem>
@@ -422,26 +477,26 @@ export function BookingForm({
               )}
             />
           </div>
-        </div>
 
-        <div>
-          <FormField
-            control={form.control}
-            name="comments"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Comentarios Adicionales</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="¿Algún comentario adicional?"
-                    className="resize-none"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="mt-4">
+            <FormField
+              control={form.control}
+              name="comments"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comentarios Adicionales</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="¿Algún comentario adicional?"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <Button type="submit" disabled={isLoading} className="w-full">

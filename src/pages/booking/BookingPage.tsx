@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   calculateCost, 
@@ -46,7 +45,7 @@ const BookingPage: React.FC = () => {
   const [departureTime, setDepartureTime] = useState('08:00');
   const [returnDate, setReturnDate] = useState<Date | undefined>(new Date());
   const [returnTime, setReturnTime] = useState('18:00');
-  const [totalCost, setTotalCost] = useState('0');
+  const [totalCost, setTotalCost] = useState<number>(0);
 
   // Load Google Maps when the component mounts with retry mechanism
   useEffect(() => {
@@ -150,8 +149,8 @@ const BookingPage: React.FC = () => {
 
   // Update cost based on vehicle type and distance
   const updateCost = (distance: number) => {
-    const cost = calculateCost(vehicleType, distance, roundTrip);
-    setTotalCost(cost);
+    const costString = calculateCost(vehicleType, distance, roundTrip);
+    setTotalCost(Number(costString));
   };
 
   // Update cost when relevant factors change
@@ -170,77 +169,7 @@ const BookingPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Map and route section */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Date and Time Selection Moved to Top */}
-            <div className="glass-card bg-slate-900/50 p-6 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] mb-4">
-              <h2 className="text-xl font-semibold mb-4 text-white">Fecha y Hora del Viaje</h2>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="font-medium text-sm text-blue-400">Ida</div>
-                  <div className="flex space-x-2">
-                    <div className="flex-1">
-                      <label className="text-sm text-gray-400">Fecha</label>
-                      <input 
-                        type="date"
-                        className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                        value={departureDate ? departureDate.toISOString().split('T')[0] : ''}
-                        onChange={(e) => setDepartureDate(e.target.value ? new Date(e.target.value) : undefined)}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-sm text-gray-400">Hora</label>
-                      <input 
-                        type="time"
-                        className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                        value={departureTime}
-                        onChange={(e) => setDepartureTime(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {roundTrip && (
-                  <div className="space-y-2 fade-in">
-                    <div className="font-medium text-sm text-blue-400">Vuelta</div>
-                    <div className="flex space-x-2">
-                      <div className="flex-1">
-                        <label className="text-sm text-gray-400">Fecha</label>
-                        <input 
-                          type="date"
-                          className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                          value={returnDate ? returnDate.toISOString().split('T')[0] : ''}
-                          onChange={(e) => setReturnDate(e.target.value ? new Date(e.target.value) : undefined)}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm text-gray-400">Hora</label>
-                        <input 
-                          type="time"
-                          className="w-full bg-slate-800/70 border border-blue-500/30 rounded p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                          value={returnTime}
-                          onChange={(e) => setReturnTime(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-4 flex items-center">
-                <div className="flex items-center">
-                  <input 
-                    id="roundtrip-checkbox" 
-                    type="checkbox" 
-                    className="h-4 w-4 text-blue-500 border-blue-500/30 rounded focus:ring-blue-500"
-                    checked={roundTrip}
-                    onChange={(e) => setRoundTrip(e.target.checked)}
-                  />
-                  <label htmlFor="roundtrip-checkbox" className="ml-2 block text-sm text-gray-300">
-                    Ida y Vuelta
-                  </label>
-                </div>
-              </div>
-            </div>
-            
+            {/* Map Section Component */}
             {!isMapLoaded ? (
               <div className="flex items-center justify-center h-[400px] glass-card bg-slate-900/50 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                 <div className="text-center">
@@ -298,7 +227,7 @@ const BookingPage: React.FC = () => {
               returnTime={returnTime}
               setReturnTime={setReturnTime}
               distance={distance}
-              totalCost={Number(totalCost)}
+              totalCost={totalCost}
               origin={originPlace}
               destination={destinationPlace}
               originCoords={origin}
