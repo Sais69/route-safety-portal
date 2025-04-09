@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -24,8 +23,7 @@ const Header = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
-      toast.success("Has cerrado sesión correctamente");
+      navigate('/login');
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Error al cerrar sesión");

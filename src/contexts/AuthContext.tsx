@@ -37,8 +37,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.email);
+        
+        // Only update state directly with synchronous operations
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         const adminStatus = checkAdminStatus(currentSession?.user ?? null);
@@ -138,6 +140,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
+      
+      // First clear all local storage items to prevent any state persistence issues
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('isAdmin');
+      
+      // Then call Supabase signOut
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -148,11 +157,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setSession(null);
       setIsAdmin(false);
-      
-      // Clear localStorage
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('isAdmin');
       
     } catch (error: any) {
       toast.error(error.message || 'Error al cerrar sesión');

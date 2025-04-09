@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -37,11 +36,7 @@ const Hero = () => {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.7, delay: 0.3 }}
               >
-                Viaja seguro con{" "}
-                <span className="relative">
-                  Buker
-                  <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></span>
-                </span>
+                Viaja seguro con Buker
               </motion.h1>
               <motion.p 
                 className="text-xl text-gray-300 max-w-xl"
