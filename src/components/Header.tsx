@@ -23,7 +23,8 @@ const Header = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/login');
+      // Redirect to home page after successful logout with replace to prevent back navigation
+      navigate('/', { replace: true });
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Error al cerrar sesión");

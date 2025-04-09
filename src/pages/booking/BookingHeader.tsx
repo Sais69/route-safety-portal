@@ -13,7 +13,8 @@ const BookingHeader: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/login');
+      // Redirect to home page after successful logout
+      navigate('/', { replace: true });
     } catch (error) {
       console.error("Error signing out:", error);
       toast.error("Error al cerrar sesión");

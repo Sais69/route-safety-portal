@@ -141,10 +141,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
-      // First clear all local storage items to prevent any state persistence issues
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('isAdmin');
+      // First clear ALL local storage items completely
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Attempt to clear any auth-related cookies (though Supabase handles this internally)
+      document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
+      
+      // Clear all auth state in context
+      setUser(null);
+      setSession(null);
+      setIsAdmin(false);
       
       // Then call Supabase signOut
       const { error } = await supabase.auth.signOut();
@@ -153,12 +163,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
       
-      // Clear ALL auth data
-      setUser(null);
-      setSession(null);
-      setIsAdmin(false);
+      toast.info("Sesión cerrada correctamente");
       
     } catch (error: any) {
+      console.error("Error signing out:", error);
       toast.error(error.message || 'Error al cerrar sesión');
     } finally {
       setIsLoading(false);
