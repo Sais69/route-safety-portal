@@ -14,6 +14,11 @@ interface MapDisplayProps {
   mapInitAttempts?: number;
 }
 
+// Add TypeScript interface for accessing map instances array
+interface GoogleMapsConstructor extends Function {
+  instances?: google.maps.Map[];
+}
+
 const MapDisplay: React.FC<MapDisplayProps> = ({
   mapRef,
   isEditingMarkers,
@@ -28,6 +33,28 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   const [manualRefreshCount, setManualRefreshCount] = useState(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const hasApiKey = Boolean(GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY.length > 20);
+
+  // Helper function to safely get a map instance from the DOM
+  const getMapInstanceFromElement = (element: Element | null): google.maps.Map | null => {
+    if (!element || !window.google?.maps?.Map) return null;
+    
+    try {
+      // Cast constructor to our extended interface to access instances
+      const mapConstructor = window.google.maps.Map as unknown as GoogleMapsConstructor;
+      
+      if (!mapConstructor.instances || !Array.isArray(mapConstructor.instances)) {
+        return null;
+      }
+      
+      // Find the map instance associated with this element
+      return mapConstructor.instances.find(
+        (map: google.maps.Map) => map.getDiv && map.getDiv() === element
+      ) || null;
+    } catch (e) {
+      console.error("Error getting map instance:", e);
+      return null;
+    }
+  };
 
   // Use IntersectionObserver to detect when map is visible in viewport
   useEffect(() => {
@@ -52,11 +79,8 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
                 // Try to find the map instance using DOM traversal
                 const mapDiv = mapRef.current.querySelector('div[aria-roledescription="map"]');
                 if (mapDiv) {
-                  // Look for a map instance associated with this element
-                  const mapInstance = window.google.maps.Map ? 
-                    Array.from(window.google.maps.Map.prototype.constructor.instances || [])
-                      .find((map: any) => map.getDiv() === mapDiv) : 
-                    null;
+                  // Get map instance using our helper function
+                  const mapInstance = getMapInstanceFromElement(mapDiv);
                     
                   if (mapInstance) {
                     // Force center to Quito and add a marker
@@ -105,11 +129,8 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
           // Find the first map instance in this container
           const mapDiv = mapRef.current.querySelector('div[aria-roledescription="map"]');
           if (mapDiv) {
-            // Look for a map instance associated with this element
-            const mapInstance = window.google.maps.Map ? 
-              Array.from(window.google.maps.Map.prototype.constructor.instances || [])
-                .find((map: any) => map.getDiv() === mapDiv) : 
-              null;
+            // Get map instance using our helper function
+            const mapInstance = getMapInstanceFromElement(mapDiv);
             
             if (mapInstance) {
               mapInstance.setZoom(mapInstance.getZoom() || 11);
@@ -165,11 +186,8 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
             try {
               const mapDiv = mapRef.current.querySelector('div[aria-roledescription="map"]');
               if (mapDiv) {
-                // Look for a map instance associated with this element
-                const mapInstance = window.google.maps.Map ? 
-                  Array.from(window.google.maps.Map.prototype.constructor.instances || [])
-                    .find((map: any) => map.getDiv() === mapDiv) : 
-                  null;
+                // Get map instance using our helper function
+                const mapInstance = getMapInstanceFromElement(mapDiv);
                   
                 if (mapInstance) {
                   // Force a zoom change to trigger redraw
