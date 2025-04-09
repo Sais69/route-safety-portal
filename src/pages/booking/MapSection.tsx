@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, MapPin, Plus, X, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Plus, X, RefreshCw, Pencil } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -67,16 +68,21 @@ const MapSection: React.FC<MapSectionProps> = ({
   const { toast: uiToast } = useToast();
   const [mapInitError, setMapInitError] = useState<string | null>(null);
   const [isReloadingMap, setIsReloadingMap] = useState(false);
+  const [originMarker, setOriginMarker] = useState<google.maps.Marker | null>(null);
+  const [destinationMarker, setDestinationMarker] = useState<google.maps.Marker | null>(null);
+  const [stopMarkers, setStopMarkers] = useState<google.maps.Marker[]>([]);
 
   // Initialize map and directions service with error handling
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
     try {
+      // Use a more lightweight map style and reduce the initial zoom level
       const mapOptions = {
         center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
-        zoom: 12,
-        // Remove mapId to avoid conflicts with styles
+        zoom: 11, // Reduced from 12 to 11
+        disableDefaultUI: true, // Simplify UI for better performance
+        zoomControl: true, // But keep zoom controls
         styles: [
           {
             "featureType": "all",
@@ -161,7 +167,7 @@ const MapSection: React.FC<MapSectionProps> = ({
 
       const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({
         map: newMap,
-        suppressMarkers: false,
+        suppressMarkers: true, // Suppress default markers so we can use our own draggable ones
         polylineOptions: {
           strokeColor: '#3b82f6',
           strokeWeight: 5,
@@ -181,8 +187,12 @@ const MapSection: React.FC<MapSectionProps> = ({
       if (directionsRenderer) {
         directionsRenderer.setMap(null);
       }
+      // Clean up markers
+      if (originMarker) originMarker.setMap(null);
+      if (destinationMarker) destinationMarker.setMap(null);
+      stopMarkers.forEach(marker => marker.setMap(null));
     };
-  }, [isReloadingMap]); // Add isReloadingMap dependency to allow map reloading
+  }, [isReloadingMap]); 
 
   // Function to reload the map if there are issues
   const handleReloadMap = () => {
@@ -196,10 +206,15 @@ const MapSection: React.FC<MapSectionProps> = ({
     }
     
     if (map) {
-      // @ts-ignore - force clear map
+      // Force clear map
       map.set(null);
       setMap(null);
     }
+    
+    // Clean up markers
+    if (originMarker) originMarker.setMap(null);
+    if (destinationMarker) destinationMarker.setMap(null);
+    stopMarkers.forEach(marker => marker.setMap(null));
     
     // Short timeout to ensure cleanup before recreating
     setTimeout(() => {
@@ -207,6 +222,35 @@ const MapSection: React.FC<MapSectionProps> = ({
       // Fixed toast error - Using just the text instead of object with title/description
       toast("Recargando mapa. Por favor espere...");
     }, 500);
+  };
+
+  // Toggle marker edit mode
+  const toggleMarkerEditMode = () => {
+    setIsEditingMarkers(!isEditingMarkers);
+    if (!isEditingMarkers) {
+      toast("Modo de edición activado. Puedes arrastrar los marcadores para ajustar las ubicaciones.");
+      
+      // Update markers to be draggable if they exist
+      updateMarkersForEditing(true);
+    } else {
+      updateMarkersForEditing(false);
+      toast("Modo de edición desactivado.");
+    }
+  };
+  
+  // Make markers draggable or not based on edit mode
+  const updateMarkersForEditing = (draggable: boolean) => {
+    if (originMarker) {
+      originMarker.setDraggable(draggable);
+    }
+    
+    if (destinationMarker) {
+      destinationMarker.setDraggable(draggable);
+    }
+    
+    stopMarkers.forEach(marker => {
+      marker.setDraggable(draggable);
+    });
   };
 
   // Initialize place autocomplete with error handling
@@ -221,11 +265,15 @@ const MapSection: React.FC<MapSectionProps> = ({
             console.log("Returned place contains no geometry");
             return;
           }
-          setOrigin({
+          const location = {
             lat: place.geometry.location!.lat(),
             lng: place.geometry.location!.lng(),
-          });
+          };
+          setOrigin(location);
           setOriginPlace(place.formatted_address || '');
+          
+          // Create or update origin marker
+          createOrUpdateMarker('origin', location, place.formatted_address || 'Origen');
         });
       }
 
@@ -235,11 +283,15 @@ const MapSection: React.FC<MapSectionProps> = ({
             console.log("Returned place contains no geometry");
             return;
           }
-          setDestination({
+          const location = {
             lat: place.geometry.location!.lat(),
             lng: place.geometry.location!.lng(),
-          });
+          };
+          setDestination(location);
           setDestinationPlace(place.formatted_address || '');
+          
+          // Create or update destination marker
+          createOrUpdateMarker('destination', location, place.formatted_address || 'Destino');
         });
       }
       
@@ -247,14 +299,14 @@ const MapSection: React.FC<MapSectionProps> = ({
         setupPlaceAutocomplete(newStopInputRef.current, (place) => {
           if (!place.geometry) return;
           
+          const placeName = place.formatted_address || place.name || '';
+          const location = {
+            lat: place.geometry.location!.lat(),
+            lng: place.geometry.location!.lng(),
+          };
+          
           // Add the selected place as a stop
-          addNewStop(
-            place.formatted_address || place.name || '',
-            {
-              lat: place.geometry.location!.lat(),
-              lng: place.geometry.location!.lng(),
-            }
-          );
+          addNewStop(placeName, location);
           setNewStopName('');
         });
       }
@@ -266,6 +318,158 @@ const MapSection: React.FC<MapSectionProps> = ({
       });
     }
   }, [map, setOrigin, setOriginPlace, setDestination, setDestinationPlace]);
+  
+  // Create or update a marker
+  const createOrUpdateMarker = (type: 'origin' | 'destination' | 'stop', position: google.maps.LatLngLiteral, title: string, stopId?: string) => {
+    if (!map) return;
+    
+    // Create marker icon based on type
+    const createIcon = (fillColor: string) => {
+      return {
+        path: "M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 7 8 11.7z",
+        fillColor: fillColor,
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: '#FFFFFF',
+        scale: 1.5,
+        anchor: new google.maps.Point(12, 22),
+      };
+    };
+    
+    // Set up marker properties based on type
+    let marker: google.maps.Marker | null = null;
+    let iconColor = '';
+    
+    if (type === 'origin') {
+      iconColor = '#3b82f6'; // Blue
+      
+      // Remove existing marker if it exists
+      if (originMarker) {
+        originMarker.setMap(null);
+      }
+      
+      // Create new marker
+      marker = new google.maps.Marker({
+        position,
+        map,
+        title: 'Origen: ' + title,
+        draggable: isEditingMarkers,
+        icon: createIcon(iconColor),
+        zIndex: 10
+      });
+      
+      // Add drag events
+      marker.addListener('dragend', () => {
+        if (!marker) return;
+        const newPos = marker.getPosition();
+        if (newPos) {
+          const newLocation = { lat: newPos.lat(), lng: newPos.lng() };
+          setOrigin(newLocation);
+          
+          // Update address through reverse geocoding
+          reverseGeocode(newLocation, (address) => {
+            setOriginPlace(address);
+          });
+        }
+      });
+      
+      setOriginMarker(marker);
+    } 
+    else if (type === 'destination') {
+      iconColor = '#16a34a'; // Green
+      
+      // Remove existing marker if it exists
+      if (destinationMarker) {
+        destinationMarker.setMap(null);
+      }
+      
+      // Create new marker
+      marker = new google.maps.Marker({
+        position,
+        map,
+        title: 'Destino: ' + title,
+        draggable: isEditingMarkers,
+        icon: createIcon(iconColor),
+        zIndex: 10
+      });
+      
+      // Add drag events
+      marker.addListener('dragend', () => {
+        if (!marker) return;
+        const newPos = marker.getPosition();
+        if (newPos) {
+          const newLocation = { lat: newPos.lat(), lng: newPos.lng() };
+          setDestination(newLocation);
+          
+          // Update address through reverse geocoding
+          reverseGeocode(newLocation, (address) => {
+            setDestinationPlace(address);
+          });
+        }
+      });
+      
+      setDestinationMarker(marker);
+    }
+    else if (type === 'stop' && stopId) {
+      iconColor = '#f97316'; // Orange
+      
+      // Create new marker
+      marker = new google.maps.Marker({
+        position,
+        map,
+        title: 'Parada: ' + title,
+        draggable: isEditingMarkers,
+        icon: createIcon(iconColor),
+        zIndex: 9
+      });
+      
+      // Add drag events
+      marker.addListener('dragend', () => {
+        if (!marker || !stopId) return;
+        const newPos = marker.getPosition();
+        if (newPos) {
+          const newLocation = { lat: newPos.lat(), lng: newPos.lng() };
+          
+          // Update the stop in the intermediate stops array
+          setIntermediateStops(prevStops => 
+            prevStops.map(stop => 
+              stop.id === stopId 
+                ? { ...stop, location: newLocation } 
+                : stop
+            )
+          );
+          
+          // Update address through reverse geocoding
+          reverseGeocode(newLocation, (address) => {
+            setIntermediateStops(prevStops => 
+              prevStops.map(stop => 
+                stop.id === stopId 
+                  ? { ...stop, placeName: address } 
+                  : stop
+              )
+            );
+          });
+        }
+      });
+      
+      // Add to stop markers array
+      setStopMarkers(prev => [...prev.filter(m => m !== marker), marker as google.maps.Marker]);
+    }
+    
+    return marker;
+  };
+  
+  // Reverse geocode to get address from coordinates
+  const reverseGeocode = (location: google.maps.LatLngLiteral, callback: (address: string) => void) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        callback(results[0].formatted_address);
+      } else {
+        callback(`${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`);
+      }
+    });
+  };
 
   // Setup place autocomplete for an input element
   const setupPlaceAutocomplete = (
@@ -348,6 +552,9 @@ const MapSection: React.FC<MapSectionProps> = ({
           // Convert meters to kilometers
           setDistance(totalDistance / 1000);
           calculateRoute();
+          
+          // Ensure markers are visible and correctly positioned
+          updateMarkers();
         } else {
           console.error('Directions request failed with status: ', status);
           uiToast({
@@ -357,6 +564,31 @@ const MapSection: React.FC<MapSectionProps> = ({
         }
       }
     );
+  };
+  
+  // Update markers after route is calculated
+  const updateMarkers = () => {
+    // Make sure origin marker exists and is correctly positioned
+    if (origin && map) {
+      createOrUpdateMarker('origin', origin, originPlace || 'Origen');
+    }
+    
+    // Make sure destination marker exists and is correctly positioned
+    if (destination && map) {
+      createOrUpdateMarker('destination', destination, destinationPlace || 'Destino');
+    }
+    
+    // Update intermediate stop markers
+    if (map) {
+      // Clean up old stop markers
+      stopMarkers.forEach(marker => marker.setMap(null));
+      setStopMarkers([]);
+      
+      // Create new markers for each stop
+      intermediateStops.forEach(stop => {
+        createOrUpdateMarker('stop', stop.location, stop.placeName, stop.id);
+      });
+    }
   };
 
   // Handle input change for new stop field and fetch suggestions
@@ -431,14 +663,20 @@ const MapSection: React.FC<MapSectionProps> = ({
 
   // Add new stop
   const addNewStop = (placeName: string, location: google.maps.LatLngLiteral) => {
+    const stopId = uuidv4();
     const newStop: Stop = {
-      id: uuidv4(),
+      id: stopId,
       placeName,
       location,
     };
     
     setIntermediateStops(prev => [...prev, newStop]);
     setNewStopName('');
+    
+    // Create a marker for the new stop
+    if (map) {
+      createOrUpdateMarker('stop', location, placeName, stopId);
+    }
   };
 
   // Add intermediate stop with geocoding
@@ -449,14 +687,24 @@ const MapSection: React.FC<MapSectionProps> = ({
     geocoder.geocode({ address: newStopName }, (results, status) => {
       if (status === 'OK' && results && results[0]) {
         const newStopLocation = results[0].geometry.location;
-        const newStop: Stop = {
-          id: uuidv4(),
-          placeName: newStopName,
-          location: { lat: newStopLocation.lat(), lng: newStopLocation.lng() },
+        const location = { 
+          lat: newStopLocation.lat(), 
+          lng: newStopLocation.lng() 
         };
+        
+        const stopId = uuidv4();
+        const newStop: Stop = {
+          id: stopId,
+          placeName: newStopName,
+          location: location,
+        };
+        
         setIntermediateStops(prev => [...prev, newStop]);
         setNewStopName('');
         setShowSuggestions(false);
+        
+        // Create a marker for the new stop
+        createOrUpdateMarker('stop', location, newStopName, stopId);
       } else {
         console.error('Geocode was not successful for the following reason: ' + status);
         uiToast({
@@ -469,6 +717,17 @@ const MapSection: React.FC<MapSectionProps> = ({
 
   // Remove intermediate stop
   const removeIntermediateStop = (id: string) => {
+    // Find the stop marker and remove it from the map
+    const stopMarkersToRemove = stopMarkers.filter(marker => 
+      marker.getTitle() && marker.getTitle()?.includes(
+        intermediateStops.find(stop => stop.id === id)?.placeName || ''
+      )
+    );
+    
+    stopMarkersToRemove.forEach(marker => marker.setMap(null));
+    
+    // Remove the stop from the state
+    setStopMarkers(stopMarkers.filter(marker => !stopMarkersToRemove.includes(marker)));
     setIntermediateStops(prev => prev.filter(stop => stop.id !== id));
   };
 
@@ -598,15 +857,26 @@ const MapSection: React.FC<MapSectionProps> = ({
           ) : (
             <>
               <div ref={mapRef} className="w-full h-full" />
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="absolute top-2 right-2 bg-slate-800/80 border-blue-500/30 text-blue-400 z-10 hover:bg-slate-700"
-                onClick={handleReloadMap}
-                title="Recargar mapa"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              <div className="absolute top-2 right-2 flex gap-2 z-10">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className={`bg-slate-800/80 border-blue-500/30 text-blue-400 hover:bg-slate-700 ${isEditingMarkers ? 'ring-2 ring-blue-500' : ''}`}
+                  onClick={toggleMarkerEditMode}
+                  title="Editar marcadores"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="bg-slate-800/80 border-blue-500/30 text-blue-400 hover:bg-slate-700"
+                  onClick={handleReloadMap}
+                  title="Recargar mapa"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
             </>
           )}
         </div>

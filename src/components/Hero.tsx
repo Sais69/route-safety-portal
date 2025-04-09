@@ -117,7 +117,7 @@ const Hero = () => {
               <div 
                 className="aspect-[4/3] bg-cover bg-center"
                 style={{
-                  backgroundImage: "url('https://epsom.es/wp-content/uploads/2021/12/MicrosoftTeams-image.jpg')",
+                  backgroundImage: "url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8YnVzfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60')",
                 }}
               >
                 <div className="w-full h-full bg-gradient-to-tr from-background/80 to-transparent flex items-end p-6">

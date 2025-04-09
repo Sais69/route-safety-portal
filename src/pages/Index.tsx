@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
@@ -10,15 +11,13 @@ import { ThreeDMarquee } from "@/components/ui/3d-marquee";
 import { ChevronRight, Map, Shield, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Imágenes para el fondo 3D
+// Updated images for the 3D background - removed yellow van
 const images = [
   "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8YnVzfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8dHJhbnNwb3J0fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
-  "https://images.unsplash.com/photo-1608826273828-0876edd09e39?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8dHJhbnNwb3J0fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1464219789935-c2d9d9aba644?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8YnVzfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1524486361537-8ad15938e1a3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MTB8fGJ1c3xlbnwwfHwwfHw%3D&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1551820230-a5589397b464?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8bWFwfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
-  "https://images.unsplash.com/photo-1502920514313-52581002a659?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Ynx8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1530064114668-b0dc38c5f341?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8bHV4dXJ5JTIwdHJhbnNwb3J0fGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
 ];
 
@@ -50,7 +49,7 @@ const Index = () => {
       <main className="flex-grow pt-16">
         <Hero />
         
-        {/* Sección 3D Mejorada */}
+        {/* Sección 3D Mejorada - Removed yellow van image */}
         <section className="relative w-full h-[90vh] overflow-hidden my-12">
           <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/40 via-black/70 to-black/80"></div>
           <div className="absolute inset-0 z-5 grid-lines opacity-20"></div>
@@ -86,7 +85,7 @@ const Index = () => {
                 </div>
               </div>
             </div>
-            <Link to="/booking" className="reveal-on-scroll" style={{transitionDelay: '600ms'}}>
+            <Link to={user ? "/booking" : "/login"} className="reveal-on-scroll" style={{transitionDelay: '600ms'}}>
               <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_20px_rgba(59,130,246,0.7)] transition-all">
                 <span className="relative z-10 flex items-center group-hover:translate-x-2 transition-transform">
                   Reservar Ahora <ChevronRight className="ml-2 h-5 w-5" />
