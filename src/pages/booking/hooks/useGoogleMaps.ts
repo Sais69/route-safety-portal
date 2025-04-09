@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { 
@@ -48,16 +49,26 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         // Step 2: Ensure Google Maps API is loaded
         if (!isGoogleMapsLoaded()) {
           console.log("Google Maps not loaded, loading script...");
-          await loadGoogleMapsScript();
+          await loadGoogleMapsScript().catch((error) => {
+            throw new Error(`Error loading Google Maps script: ${error.message}`);
+          });
         }
         
-        // Step 3: Ensure the map container element is ready
+        // Step 3: Wait a bit to ensure the scripts are fully initialized
+        await new Promise<void>(resolve => setTimeout(resolve, 300));
+        
+        // Double check that maps is loaded
+        if (!window.google || !window.google.maps) {
+          throw new Error("Google Maps API failed to initialize properly");
+        }
+        
+        // Step 4: Ensure the map container element is ready
         console.log("Waiting for map container element to be ready...");
         await ensureMapElementReady(mapRef);
         
-        // Step 4: Initialize the map
-        if (!mapRef.current || !window.google) {
-          throw new Error("Map container element not available or Google Maps not loaded");
+        // Step 5: Initialize the map
+        if (!mapRef.current) {
+          throw new Error("Map container element not available");
         }
         
         console.log("Creating map instance");
@@ -153,9 +164,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         // Monitor viewport changes to handle resize
         window.addEventListener('resize', () => {
           if (newMap) {
-            setTimeout(() => {
-              window.google.maps.event.trigger(newMap, 'resize');
-            }, 100);
+            window.google.maps.event.trigger(newMap, 'resize');
           }
         });
 

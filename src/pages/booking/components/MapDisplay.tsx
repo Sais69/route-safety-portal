@@ -85,7 +85,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
       console.log('Ensuring map is properly sized after becoming visible');
       
       // Force multiple resize events to ensure map renders properly
-      const resizeTimes = [100, 500, 1000]; // Try at different intervals
+      const resizeTimes = [100, 500, 1000, 2000]; // Try at different intervals
       
       resizeTimes.forEach(time => {
         setTimeout(() => {
@@ -112,6 +112,7 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
               <li>Verificar su conexión a internet</li>
               <li>Probar con otro navegador (Chrome, Firefox, Safari)</li>
               <li>Desactivar bloqueadores de anuncios o scripts</li>
+              <li>Comprobar que la API key de Google Maps está correctamente configurada</li>
             </ul>
           </div>
         </>

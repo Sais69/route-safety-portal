@@ -1,30 +1,67 @@
+
 import { GOOGLE_MAPS_API_KEY } from "@/constants";
 
 // Function to load the Google Maps script
 export const loadGoogleMapsScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
+    // Check if Google Maps is already loaded
     if (window.google && window.google.maps) {
       console.log('Google Maps API already loaded');
       resolve();
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
+    // Create a div to track script loading status
+    const mapTrackingDiv = document.createElement('div');
+    mapTrackingDiv.id = 'google-maps-loading-status';
+    document.body.appendChild(mapTrackingDiv);
 
-    script.onload = () => {
-      console.log('Google Maps API loaded successfully');
-      resolve();
-    };
+    // Check if we have a valid API key
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === '') {
+      console.error('No Google Maps API key available');
+      reject(new Error('Google Maps API key not available'));
+      return;
+    }
 
-    script.onerror = () => {
-      console.error('Failed to load Google Maps API');
-      reject(new Error('Failed to load Google Maps API'));
-    };
+    try {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
 
-    document.head.appendChild(script);
+      // Setup event handlers for success and failure
+      script.onload = () => {
+        console.log('Google Maps API loaded successfully');
+        document.body.removeChild(mapTrackingDiv);
+        resolve();
+      };
+
+      script.onerror = (error) => {
+        console.error('Failed to load Google Maps API:', error);
+        document.body.removeChild(mapTrackingDiv);
+        reject(new Error('Failed to load Google Maps API - Network Error'));
+      };
+
+      // Add the script to the document
+      document.head.appendChild(script);
+      
+      // Set a timeout to catch cases where the script loads but doesn't initialize properly
+      setTimeout(() => {
+        if (!window.google || !window.google.maps) {
+          console.error('Google Maps API failed to initialize within timeout period');
+          if (document.body.contains(mapTrackingDiv)) {
+            document.body.removeChild(mapTrackingDiv);
+          }
+          reject(new Error('Google Maps API initialization timed out'));
+        }
+      }, 10000); // 10 seconds timeout
+    } catch (error) {
+      console.error('Error setting up Google Maps script:', error);
+      if (document.body.contains(mapTrackingDiv)) {
+        document.body.removeChild(mapTrackingDiv);
+      }
+      reject(error);
+    }
   });
 };
 

@@ -21,16 +21,22 @@ serve(async (req) => {
       throw new Error('API key not found');
     }
     
-    // Return the API key in the response
+    // Add detailed logging
+    console.log("API key successfully retrieved");
+    console.log("Request origin:", req.headers.get('origin'));
+    
+    // Return the API key in the response with proper headers
     return new Response(
       JSON.stringify({ 
         apiKey,
-        message: 'API key retrieved successfully' 
+        message: 'API key retrieved successfully',
+        timestamp: new Date().toISOString()
       }),
       { 
         headers: { 
           ...corsHeaders,
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0'
         } 
       }
     );
