@@ -9,6 +9,7 @@ import NotFound from './pages/NotFound';
 import MyBookings from './pages/MyBookings';
 import AdminPage from './pages/admin/AdminPage';
 import { initializeApiKeys } from './constants';
+import { AuthProvider } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
@@ -23,15 +24,17 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/booking" element={<BookingPage />} />
-      <Route path="/my-bookings" element={<MyBookings />} />
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/booking" element={<BookingPage />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 
