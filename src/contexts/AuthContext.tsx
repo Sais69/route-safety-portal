@@ -1,3 +1,4 @@
+
 import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Updated admin check logic with specific credentials
+  // Admin check logic with specific credentials (trayectolabs@gmail.com)
   const checkAdminStatus = (currentUser: User | null) => {
     if (!currentUser) return false;
     
