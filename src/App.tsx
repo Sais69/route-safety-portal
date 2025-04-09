@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,9 +17,10 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 // Create a client
 const queryClient = new QueryClient();
 
-// Protected Route Component
+// Protected Route Component for Regular Users
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
   
   // Show loading state
   if (isLoading) {
@@ -32,7 +33,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   return <>{children}</>;
@@ -40,7 +41,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Admin Route Component
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAdmin } = useAuth();
+  const location = useLocation();
   
   // Show loading state
   if (isLoading) {
@@ -52,10 +54,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Basic admin check - in a real app, you would check user roles
-  // Here we're simply checking if email ends with @admin.com
-  if (!user || !(user.email && user.email.endsWith('@admin.com'))) {
-    return <Navigate to="/login" replace />;
+  // Check if user is logged in and is admin
+  if (!user || !isAdmin) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   return <>{children}</>;

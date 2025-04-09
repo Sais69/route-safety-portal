@@ -13,18 +13,19 @@ import { useAuth } from "@/contexts/AuthContext";
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signIn, isLoading, user } = useAuth();
+  const { signIn, isLoading, user, isAdmin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formSubmitting, setFormSubmitting] = useState(false);
 
+  const from = location.state?.from?.pathname || (isAdmin ? "/admin" : "/booking");
+
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      const from = location.state?.from?.pathname || "/booking";
-      navigate(from, { replace: true });
+      navigate(isAdmin ? "/admin" : from, { replace: true });
     }
-  }, [user, navigate, location]);
+  }, [user, isAdmin, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +39,7 @@ const Login = () => {
     try {
       setFormSubmitting(true);
       await signIn(email, password);
-      navigate("/booking");
+      // No need to navigate here - will be handled by the effect when user is updated
     } catch (error) {
       // Error is handled in the signIn function
       console.error("Error en el inicio de sesión:", error);

@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,12 +24,6 @@ const Header = () => {
     await signOut();
     navigate('/');
   };
-
-  // Check if user is admin
-  const isAdmin = React.useMemo(() => {
-    return user?.email?.endsWith('@admin.com') || 
-           user?.user_metadata?.first_name === 'Trayectotec';
-  }, [user]);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -60,7 +54,7 @@ const Header = () => {
               </a>
             </>
           )}
-          {user && (
+          {user && !isAdmin && (
             <>
               <Link to="/booking" className="text-gray-300 hover:text-blue-400 transition-colors">
                 Nueva Reserva
@@ -75,7 +69,7 @@ const Header = () => {
               Nosotros
             </a>
           )}
-          {isAdmin && (
+          {user && isAdmin && (
             <Link 
               to="/admin" 
               className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
@@ -148,7 +142,7 @@ const Header = () => {
                 </a>
               </>
             )}
-            {user && (
+            {user && !isAdmin && (
               <>
                 <Link 
                   to="/booking" 
@@ -172,7 +166,7 @@ const Header = () => {
                 Nosotros
               </a>
             )}
-            {isAdmin && (
+            {user && isAdmin && (
               <Link 
                 to="/admin" 
                 className="text-blue-400 hover:text-blue-300 transition-colors py-2 flex items-center gap-1"

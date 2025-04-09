@@ -3,11 +3,13 @@ import { createContext, useState, useEffect, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userData: any) => Promise<void>;
   signOut: () => Promise<void>;
@@ -20,6 +22,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  const checkAdminStatus = (currentUser: User | null) => {
+    if (!currentUser) return false;
+    
+    return currentUser.email?.endsWith('@admin.com') || 
+           currentUser.user_metadata?.first_name === 'Trayectotec';
+  };
 
   useEffect(() => {
     // Set up auth state listener first
@@ -27,11 +38,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        setIsAdmin(checkAdminStatus(currentSession?.user ?? null));
 
         // Store authentication state in localStorage for other components
         if (currentSession) {
           localStorage.setItem('isAuthenticated', 'true');
           localStorage.setItem('userEmail', currentSession.user.email || '');
+          localStorage.setItem('isAdmin', checkAdminStatus(currentSession.user) ? 'true' : 'false');
 
           // Only fetch additional user data if needed
           if (event === 'SIGNED_IN') {
@@ -42,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else {
           localStorage.removeItem('isAuthenticated');
           localStorage.removeItem('userEmail');
+          localStorage.removeItem('isAdmin');
           if (event === 'SIGNED_OUT') {
             setTimeout(() => {
               toast.info("Sesión cerrada");
@@ -55,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
+      setIsAdmin(checkAdminStatus(currentSession?.user ?? null));
       setIsLoading(false);
     });
 
@@ -121,6 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const setAuthSession = (newSession: Session | null) => {
     setSession(newSession);
     setUser(newSession?.user ?? null);
+    setIsAdmin(checkAdminStatus(newSession?.user ?? null));
   };
 
   return (
@@ -129,6 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user, 
         session, 
         isLoading,
+        isAdmin,
         signIn,
         signUp,
         signOut,
