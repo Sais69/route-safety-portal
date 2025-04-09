@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Bus, Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,6 +10,7 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,32 +25,55 @@ const Header = () => {
     navigate('/');
   };
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 py-4 transition-all duration-300 ${
       isScrolled ? 'bg-background/80 backdrop-blur-lg shadow-lg' : 'bg-transparent'
     }`}>
       <div className="container mx-auto px-4 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Bus size={28} className="text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.7)]" />
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Buker</h1>
+          <Link to="/" className="flex items-center space-x-2">
+            <Bus size={28} className="text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.7)]" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Buker</h1>
+          </Link>
         </div>
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <a href="#vehicles" className="text-gray-300 hover:text-blue-400 transition-colors">
-            Vehículos
-          </a>
-          <a href="#safety" className="text-gray-300 hover:text-blue-400 transition-colors">
-            Seguridad
-          </a>
+          {location.pathname === '/' && (
+            <>
+              <a href="#vehicles" className="text-gray-300 hover:text-blue-400 transition-colors">
+                Vehículos
+              </a>
+              <a href="#safety" className="text-gray-300 hover:text-blue-400 transition-colors">
+                Seguridad
+              </a>
+            </>
+          )}
           {user && (
-            <Link to="/my-bookings" className="text-gray-300 hover:text-blue-400 transition-colors">
-              Mis Reservas
+            <>
+              <Link to="/booking" className="text-gray-300 hover:text-blue-400 transition-colors">
+                Nueva Reserva
+              </Link>
+              <Link to="/my-bookings" className="text-gray-300 hover:text-blue-400 transition-colors">
+                Mis Reservas
+              </Link>
+            </>
+          )}
+          {location.pathname === '/' && (
+            <a href="#about" className="text-gray-300 hover:text-blue-400 transition-colors">
+              Nosotros
+            </a>
+          )}
+          {user?.email?.endsWith('@admin.com') && (
+            <Link to="/admin" className="text-gray-300 hover:text-blue-400 transition-colors">
+              Panel Admin
             </Link>
           )}
-          <a href="#about" className="text-gray-300 hover:text-blue-400 transition-colors">
-            Nosotros
-          </a>
         </nav>
         
         {/* Desktop Auth Buttons */}
@@ -98,36 +122,54 @@ const Header = () => {
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur-lg border-b border-blue-900/30 py-4 shadow-lg">
           <nav className="container mx-auto px-4 flex flex-col space-y-4">
-            <a 
-              href="#vehicles" 
-              className="text-gray-300 hover:text-blue-400 transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Vehículos
-            </a>
-            <a 
-              href="#safety" 
-              className="text-gray-300 hover:text-blue-400 transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Seguridad
-            </a>
+            {location.pathname === '/' && (
+              <>
+                <a 
+                  href="#vehicles" 
+                  className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                >
+                  Vehículos
+                </a>
+                <a 
+                  href="#safety" 
+                  className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                >
+                  Seguridad
+                </a>
+              </>
+            )}
             {user && (
-              <Link 
-                to="/my-bookings" 
+              <>
+                <Link 
+                  to="/booking" 
+                  className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                >
+                  Nueva Reserva
+                </Link>
+                <Link 
+                  to="/my-bookings" 
+                  className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                >
+                  Mis Reservas
+                </Link>
+              </>
+            )}
+            {location.pathname === '/' && (
+              <a 
+                href="#about" 
                 className="text-gray-300 hover:text-blue-400 transition-colors py-2"
-                onClick={() => setMobileMenuOpen(false)}
               >
-                Mis Reservas
+                Nosotros
+              </a>
+            )}
+            {user?.email?.endsWith('@admin.com') && (
+              <Link 
+                to="/admin" 
+                className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+              >
+                Panel Admin
               </Link>
             )}
-            <a 
-              href="#about" 
-              className="text-gray-300 hover:text-blue-400 transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Nosotros
-            </a>
             <div className="flex flex-col space-y-2 pt-2 border-t border-blue-900/30">
               {user ? (
                 <>
@@ -145,12 +187,12 @@ const Header = () => {
                 </>
               ) : (
                 <>
-                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/login">
                     <Button variant="outline" className="w-full border-blue-500/50 text-blue-400 hover:bg-blue-500/10">
                       Iniciar Sesión
                     </Button>
                   </Link>
-                  <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/register">
                     <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                       Registrarse
                     </Button>

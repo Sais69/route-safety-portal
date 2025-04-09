@@ -12,7 +12,6 @@ import Booking from "./pages/Booking";
 import MyBookings from "./pages/MyBookings";
 import AdminPage from "./pages/admin/AdminPage";
 import NotFound from "./pages/NotFound";
-import ThreeDMarqueeDemoSecond from "./components/3d-marquee-demo-2";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Create a client
@@ -92,7 +91,6 @@ function AppRoutes() {
           </AdminRoute>
         } 
       />
-      <Route path="/3d-marquee" element={<ThreeDMarqueeDemoSecond />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
