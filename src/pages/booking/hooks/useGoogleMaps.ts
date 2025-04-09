@@ -1,7 +1,11 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { loadGoogleMapsScript, isGoogleMapsLoaded, ensureMapElementReady } from '@/services/mapService';
+import { 
+  loadGoogleMapsScript, 
+  isGoogleMapsLoaded, 
+  ensureMapElementReady,
+  createOrGetMapInstance
+} from '@/services/mapService';
 
 export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadingMap: boolean) => {
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -9,6 +13,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
   const [mapInitError, setMapInitError] = useState<string | null>(null);
   const mapInitAttempts = useRef(0);
   const isInitializing = useRef(false);
+  const mapInstanceId = useRef(`map-${Date.now()}`);
 
   // Initialize map and directions service with improved error handling
   useEffect(() => {
@@ -26,17 +31,31 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
       try {
         console.log("Starting map initialization");
         
-        // Step 1: Ensure Google Maps API is loaded
+        // Step 1: Wait for document to be ready
+        if (document.readyState !== 'complete') {
+          await new Promise<void>((resolve) => {
+            const checkReady = () => {
+              if (document.readyState === 'complete') {
+                resolve();
+              } else {
+                setTimeout(checkReady, 100);
+              }
+            };
+            checkReady();
+          });
+        }
+        
+        // Step 2: Ensure Google Maps API is loaded
         if (!isGoogleMapsLoaded()) {
           console.log("Google Maps not loaded, loading script...");
           await loadGoogleMapsScript();
         }
         
-        // Step 2: Ensure the map container element is ready
+        // Step 3: Ensure the map container element is ready
         console.log("Waiting for map container element to be ready...");
         await ensureMapElementReady(mapRef);
         
-        // Step 3: Initialize the map
+        // Step 4: Initialize the map
         if (!mapRef.current || !window.google) {
           throw new Error("Map container element not available or Google Maps not loaded");
         }
@@ -45,7 +64,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         // Use a more lightweight map style and reduce the initial zoom level
         const mapOptions = {
           center: { lat: -0.1807, lng: -78.4678 }, // Quito, Ecuador
-          zoom: 11, // Reduced from 12 to 11
+          zoom: 11, // Lower zoom level for better performance
           disableDefaultUI: true, // Simplify UI for better performance
           zoomControl: true, // But keep zoom controls
           styles: [
@@ -117,26 +136,27 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
           ]
         };
 
-        const newMap = new window.google.maps.Map(mapRef.current, mapOptions);
-        
-        // Force a resize after map creation to ensure proper rendering
-        setTimeout(() => {
-          window.google.maps.event.trigger(newMap, 'resize');
-        }, 100);
-        
+        // Use our enhanced map creation function
+        const newMap = await createOrGetMapInstance(mapRef, mapOptions, mapInstanceId.current);
         setMap(newMap);
         console.log("Map instance created successfully");
 
-        // Add listeners for map initialization events
-        window.google.maps.event.addListenerOnce(newMap, 'idle', () => {
-          console.log('Map is fully loaded and ready');
+        // Force multiple resize events to ensure proper rendering
+        [100, 500, 1000, 2000].forEach(timeout => {
+          setTimeout(() => {
+            if (newMap) {
+              window.google.maps.event.trigger(newMap, 'resize');
+            }
+          }, timeout);
         });
 
-        window.google.maps.event.addListener(newMap, 'bounds_changed', () => {
-          // Trigger a resize when bounds change to ensure the map renders properly
-          setTimeout(() => {
-            window.google.maps.event.trigger(newMap, 'resize');
-          }, 100);
+        // Monitor viewport changes to handle resize
+        window.addEventListener('resize', () => {
+          if (newMap) {
+            setTimeout(() => {
+              window.google.maps.event.trigger(newMap, 'resize');
+            }, 100);
+          }
         });
 
         // Create directions renderer
@@ -169,11 +189,15 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
       }
     };
     
-    // Start initialization process
-    initializeMap();
+    // Add a small delay before initialization to ensure DOM is ready
+    const initTimeout = setTimeout(() => {
+      initializeMap();
+    }, 300); 
     
     // Cleanup function
     return () => {
+      clearTimeout(initTimeout);
+      
       if (directionsRenderer) {
         directionsRenderer.setMap(null);
       }

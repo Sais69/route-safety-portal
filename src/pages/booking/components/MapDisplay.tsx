@@ -21,16 +21,28 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
   mapInitAttempts = 0
 }) => {
   const [isMapVisible, setIsMapVisible] = useState(false);
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Use IntersectionObserver to detect when map is visible in viewport
   useEffect(() => {
     if (!mapRef.current) return;
+    
+    setIsContainerReady(true);
     
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsMapVisible(true);
           observer.unobserve(entry.target);
+          
+          // When map becomes visible, force a resize event
+          setTimeout(() => {
+            if (window.google && window.google.maps && mapRef.current) {
+              console.log('Map is visible - triggering resize event');
+              window.google.maps.event.trigger(mapRef.current, 'resize');
+            }
+          }, 100);
         }
       },
       { threshold: 0.1 }
@@ -45,16 +57,45 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
     };
   }, [mapRef.current]);
 
+  // Setup a resize observer to ensure map resizes when container does
+  useEffect(() => {
+    if (!mapRef.current || !isMapVisible) return;
+    
+    // Initialize resize observer to handle container size changes
+    resizeObserverRef.current = new ResizeObserver((entries) => {
+      if (entries[0] && window.google && window.google.maps) {
+        console.log('Container resized - triggering map resize');
+        window.google.maps.event.trigger(mapRef.current, 'resize');
+      }
+    });
+    
+    // Start observing the map container
+    resizeObserverRef.current.observe(mapRef.current);
+    
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+    };
+  }, [mapRef.current, isMapVisible]);
+
   // Make sure the map is properly sized when it becomes visible
   useEffect(() => {
-    if (isMapVisible && mapRef.current && window.google && window.google.maps) {
-      const map = mapRef.current;
-      // Force a resize to ensure map renders properly
-      setTimeout(() => {
-        window.google?.maps?.event?.trigger(map, 'resize');
-      }, 100);
+    if (isMapVisible && isContainerReady && mapRef.current && window.google && window.google.maps) {
+      console.log('Ensuring map is properly sized after becoming visible');
+      
+      // Force multiple resize events to ensure map renders properly
+      const resizeTimes = [100, 500, 1000]; // Try at different intervals
+      
+      resizeTimes.forEach(time => {
+        setTimeout(() => {
+          if (window.google?.maps?.event && mapRef.current) {
+            window.google.maps.event.trigger(mapRef.current, 'resize');
+          }
+        }, time);
+      });
     }
-  }, [isMapVisible]);
+  }, [isMapVisible, isContainerReady]);
 
   // Generate a suitable error message based on the number of attempts
   const getErrorMessage = () => {
@@ -112,7 +153,13 @@ const MapDisplay: React.FC<MapDisplayProps> = ({
         </div>
       ) : (
         <>
-          <div ref={mapRef} className="w-full h-full" data-testid="map-container" id="google-map-container" />
+          <div 
+            ref={mapRef} 
+            className="w-full h-full" 
+            data-testid="map-container" 
+            id="google-map-container" 
+            style={{ width: '100%', height: '400px', minHeight: '400px' }}
+          />
           <div className="absolute top-2 right-2 flex gap-2 z-10">
             <Button 
               variant="outline" 
