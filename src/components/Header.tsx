@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Bus, Menu, X } from "lucide-react";
+import { Bus, Menu, X, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
@@ -24,6 +24,12 @@ const Header = () => {
     await signOut();
     navigate('/');
   };
+
+  // Check if user is admin
+  const isAdmin = React.useMemo(() => {
+    return user?.email?.endsWith('@admin.com') || 
+           user?.user_metadata?.first_name === 'Trayectotec';
+  }, [user]);
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -69,8 +75,12 @@ const Header = () => {
               Nosotros
             </a>
           )}
-          {user?.email?.endsWith('@admin.com') && (
-            <Link to="/admin" className="text-gray-300 hover:text-blue-400 transition-colors">
+          {isAdmin && (
+            <Link 
+              to="/admin" 
+              className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
+            >
+              <LayoutDashboard className="h-4 w-4" />
               Panel Admin
             </Link>
           )}
@@ -162,11 +172,12 @@ const Header = () => {
                 Nosotros
               </a>
             )}
-            {user?.email?.endsWith('@admin.com') && (
+            {isAdmin && (
               <Link 
                 to="/admin" 
-                className="text-gray-300 hover:text-blue-400 transition-colors py-2"
+                className="text-blue-400 hover:text-blue-300 transition-colors py-2 flex items-center gap-1"
               >
+                <LayoutDashboard className="h-4 w-4" />
                 Panel Admin
               </Link>
             )}

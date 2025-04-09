@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -32,7 +33,25 @@ import {
   TabsList, 
   TabsTrigger 
 } from "@/components/ui/tabs";
-import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink } from "lucide-react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink, Calendar, Filter, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,6 +93,16 @@ const ADMIN_CREDENTIALS = {
   password: 'Trayectotec2025'
 };
 
+// Define filter types
+interface FilterOptions {
+  dateRange: {
+    from: Date | null;
+    to: Date | null;
+  };
+  status: string;
+  userEmail: string;
+}
+
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, signIn } = useAuth();
@@ -85,6 +114,15 @@ const AdminPage: React.FC = () => {
   const [totalBookings, setTotalBookings] = useState(0);
   const [totalDistance, setTotalDistance] = useState(0);
   const [completedBookings, setCompletedBookings] = useState(0);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    dateRange: { from: null, to: null },
+    status: 'all',
+    userEmail: '',
+  });
+  const [uniqueUsers, setUniqueUsers] = useState<string[]>([]);
 
   // Check if current user is admin
   useEffect(() => {
@@ -153,7 +191,8 @@ const AdminPage: React.FC = () => {
       if (storedBookings) {
         try {
           const parsedBookings = JSON.parse(storedBookings);
-          // Merge with any bookings that might be only in localStorage (for backward compatibility)
+          // Merge with any bookings that might be only in localStorage
+          // This is for backwards compatibility
           const idSet = new Set(allBookings.map(b => b.id));
           const localOnlyBookings = parsedBookings.filter((b: any) => !idSet.has(b.id));
           allBookings = [...allBookings, ...localOnlyBookings];
@@ -161,6 +200,10 @@ const AdminPage: React.FC = () => {
           console.error('Error parsing local bookings', e);
         }
       }
+
+      // Extract unique user emails for filtering
+      const emails = Array.from(new Set(allBookings.map(b => b.userData.email))).filter(Boolean);
+      setUniqueUsers(emails);
 
       // Update states
       setBookings(allBookings);
@@ -202,13 +245,33 @@ const AdminPage: React.FC = () => {
     }
   };
   
-  // Filter bookings based on search term
-  const filteredBookings = bookings.filter(booking => 
-    booking.userData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.userData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.destination.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter bookings based on search term and filters
+  const filteredBookings = bookings.filter(booking => {
+    // Search term filter
+    const matchesSearch = 
+      booking.userData.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.userData.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.destination.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // Status filter
+    if (filters.status !== 'all' && booking.status !== filters.status) return false;
+    
+    // User email filter
+    if (filters.userEmail && booking.userData.email !== filters.userEmail) return false;
+    
+    // Date range filter
+    if (filters.dateRange.from || filters.dateRange.to) {
+      const bookingDate = new Date(booking.departureDate);
+      
+      if (filters.dateRange.from && bookingDate < filters.dateRange.from) return false;
+      if (filters.dateRange.to && bookingDate > filters.dateRange.to) return false;
+    }
+    
+    return true;
+  });
 
   // Update booking status
   const updateBookingStatus = async (id: string, newStatus: 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada') => {
@@ -247,6 +310,58 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Delete booking function
+  const handleDeleteBooking = async (id: string) => {
+    try {
+      // Delete from Supabase if available
+      if (supabase) {
+        const { error } = await supabase
+          .from('bookings')
+          .delete()
+          .eq('id', id);
+          
+        if (error) {
+          throw error;
+        }
+      }
+      
+      // Update local state
+      const updatedBookings = bookings.filter(booking => booking.id !== id);
+      setBookings(updatedBookings);
+      localStorage.setItem('bookings', JSON.stringify(updatedBookings));
+      
+      // Update statistics
+      setTotalBookings(updatedBookings.length);
+      setCompletedBookings(updatedBookings.filter(b => b.status === 'realizada').length);
+      const totalDist = updatedBookings
+        .filter(booking => booking.status === 'realizada')
+        .reduce((total, booking) => total + booking.distance, 0);
+      setTotalDistance(totalDist);
+      
+      toast.success('Reserva eliminada correctamente');
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      toast.error('Error al eliminar la reserva');
+    }
+  };
+
+  // Confirm delete dialog
+  const confirmDelete = (id: string) => {
+    setBookingToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      dateRange: { from: null, to: null },
+      status: 'all',
+      userEmail: '',
+    });
+    setShowFilters(false);
+  };
+
   // Generate route link for Google Maps
   const generateRouteLink = (origin: string, destination: string, intermediateStops?: Array<{placeName: string}>) => {
     let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
@@ -258,6 +373,21 @@ const AdminPage: React.FC = () => {
     }
     
     return url;
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string | Date) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (e) {
+      return String(dateString);
+    }
   };
 
   const getStatusBadgeClass = (status: string) => {
@@ -438,16 +568,100 @@ const AdminPage: React.FC = () => {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between">
                   <CardTitle className="text-gradient bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">Reservas</CardTitle>
-                  <div className="relative w-full md:w-80 mt-4 md:mt-0">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                    <Input
-                      placeholder="Buscar reservas..."
-                      className="pl-8 bg-slate-800/60 border-blue-500/30 text-white"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                  <div className="flex flex-col md:flex-row md:items-center gap-3 mt-4 md:mt-0 w-full md:w-auto">
+                    <div className="relative w-full md:w-80">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                      <Input
+                        placeholder="Buscar reservas..."
+                        className="pl-8 bg-slate-800/60 border-blue-500/30 text-white"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`border-blue-500/30 ${showFilters ? 'bg-blue-900/30 text-blue-300' : 'text-blue-400'}`}
+                    >
+                      <Filter className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
+                
+                {/* Filters panel */}
+                {showFilters && (
+                  <div className="mt-4 p-4 bg-slate-800/50 rounded-md border border-blue-500/20">
+                    <div className="font-medium text-blue-400 mb-3 flex items-center justify-between">
+                      <span>Filtros avanzados</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={resetFilters}
+                        className="text-xs text-gray-400 hover:text-gray-300"
+                      >
+                        Resetear filtros
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Date filter */}
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Fecha</label>
+                        <Input
+                          type="date"
+                          className="bg-slate-800/60 border-blue-500/30 text-white"
+                          onChange={(e) => setFilters({
+                            ...filters,
+                            dateRange: { 
+                              ...filters.dateRange, 
+                              from: e.target.value ? new Date(e.target.value) : null 
+                            }
+                          })}
+                        />
+                      </div>
+                      
+                      {/* Status filter */}
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Estado</label>
+                        <Select 
+                          value={filters.status}
+                          onValueChange={(value) => setFilters({...filters, status: value})}
+                        >
+                          <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
+                            <SelectValue placeholder="Todos los estados" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-blue-500/30">
+                            <SelectItem value="all">Todos</SelectItem>
+                            <SelectItem value="pendiente">Pendiente</SelectItem>
+                            <SelectItem value="designada">Designada</SelectItem>
+                            <SelectItem value="en curso">En curso</SelectItem>
+                            <SelectItem value="realizada">Realizada</SelectItem>
+                            <SelectItem value="negada">Negada</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* User filter */}
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-1">Usuario</label>
+                        <Select 
+                          value={filters.userEmail}
+                          onValueChange={(value) => setFilters({...filters, userEmail: value})}
+                        >
+                          <SelectTrigger className="bg-slate-800/60 border-blue-500/30 text-white">
+                            <SelectValue placeholder="Todos los usuarios" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-blue-500/30 max-h-[200px]">
+                            <SelectItem value="">Todos</SelectItem>
+                            {uniqueUsers.map(email => (
+                              <SelectItem key={email} value={email}>{email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="overflow-auto">
@@ -471,6 +685,7 @@ const AdminPage: React.FC = () => {
                             <div className="flex flex-col">
                               <span className="font-medium">{booking.userData.name}</span>
                               <span className="text-sm text-gray-400">{booking.userData.phone}</span>
+                              <span className="text-xs text-gray-500">{booking.userData.email}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-200">
@@ -516,11 +731,7 @@ const AdminPage: React.FC = () => {
                             <div className="flex flex-col">
                               <span className="flex items-center">
                                 <CalendarRange className="h-3 w-3 mr-1 text-gray-400" /> 
-                                {booking.departureDate instanceof Date 
-                                  ? booking.departureDate.toISOString().split('T')[0]
-                                  : typeof booking.departureDate === 'string' 
-                                    ? booking.departureDate.split('T')[0]
-                                    : booking.departureDate}
+                                {formatDate(booking.departureDate)}
                               </span>
                               <span className="flex items-center">
                                 <Clock className="h-3 w-3 mr-1 text-gray-400" /> {booking.departureTime}
@@ -536,24 +747,35 @@ const AdminPage: React.FC = () => {
                             ${typeof booking.cost === 'number' ? booking.cost.toFixed(2) : booking.cost}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Select 
-                              defaultValue={booking.status}
-                              onValueChange={(value) => updateBookingStatus(
-                                booking.id, 
-                                value as 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada'
-                              )}
-                            >
-                              <SelectTrigger className="w-[130px] bg-slate-800/60 border-blue-500/30 text-gray-200">
-                                <SelectValue placeholder="Cambiar estado" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-slate-800 border-blue-500/30">
-                                <SelectItem value="pendiente" className="text-yellow-300">Pendiente</SelectItem>
-                                <SelectItem value="designada" className="text-blue-300">Designada</SelectItem>
-                                <SelectItem value="en curso" className="text-purple-300">En curso</SelectItem>
-                                <SelectItem value="realizada" className="text-green-300">Realizada</SelectItem>
-                                <SelectItem value="negada" className="text-red-300">Negada</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex justify-end items-center space-x-2">
+                              <Select 
+                                defaultValue={booking.status}
+                                onValueChange={(value) => updateBookingStatus(
+                                  booking.id, 
+                                  value as 'pendiente' | 'designada' | 'en curso' | 'realizada' | 'negada'
+                                )}
+                              >
+                                <SelectTrigger className="w-[130px] bg-slate-800/60 border-blue-500/30 text-gray-200">
+                                  <SelectValue placeholder="Cambiar estado" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-800 border-blue-500/30">
+                                  <SelectItem value="pendiente" className="text-yellow-300">Pendiente</SelectItem>
+                                  <SelectItem value="designada" className="text-blue-300">Designada</SelectItem>
+                                  <SelectItem value="en curso" className="text-purple-300">En curso</SelectItem>
+                                  <SelectItem value="realizada" className="text-green-300">Realizada</SelectItem>
+                                  <SelectItem value="negada" className="text-red-300">Negada</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => confirmDelete(booking.id)}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -614,6 +836,33 @@ const AdminPage: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent className="bg-slate-800 border-red-500/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">¿Eliminar reserva?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-300">
+              Esta acción no se puede deshacer. La reserva será eliminada permanentemente del sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-red-900/70 hover:bg-red-800 text-white border border-red-500/50"
+              onClick={() => {
+                if (bookingToDelete) {
+                  handleDeleteBooking(bookingToDelete);
+                }
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
