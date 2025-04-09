@@ -697,7 +697,7 @@ const MapSection: React.FC<MapSectionProps> = ({
         };
         
         const stopId = uuidv4();
-        const newStop: Stop = {
+        const newStop: Stop = {\
           id: stopId,
           placeName: newStopName,
           location: location,
