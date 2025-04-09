@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -461,7 +460,7 @@ const MapSection: React.FC<MapSectionProps> = ({
   
   // Reverse geocode to get address from coordinates
   const reverseGeocode = (location: google.maps.LatLngLiteral, callback: (address: string) => void) => {
-    const geocoder = new google.maps.Geocoder();
+    const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ location }, (results, status) => {
       if (status === 'OK' && results && results[0]) {
         callback(results[0].formatted_address);
@@ -496,6 +495,11 @@ const MapSection: React.FC<MapSectionProps> = ({
       });
     } catch (error) {
       console.error("Error setting up place autocomplete:", error);
+      // Fix: Make sure to pass both title and description to uiToast
+      uiToast({
+        title: "Error",
+        description: "Error al configurar la búsqueda de lugares",
+      });
     }
   };
 
@@ -892,9 +896,4 @@ const MapSection: React.FC<MapSectionProps> = ({
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-export default MapSection;
+      </
