@@ -26,9 +26,11 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useToast } from "@/components/ui/use-toast";
-import { useMap } from "@/contexts/MapContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+
+// Remove the MapContext import since it doesn't exist
+// import { useMap } from "@/contexts/MapContext";
 
 const FormSchema = z.object({
   origin: z.string().min(2, {
@@ -72,6 +74,7 @@ export function BookingForm({
   destinationCoords,
   intermediateStops
 }: BookingFormProps) {
+  // ... keep existing code (component implementation)
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();

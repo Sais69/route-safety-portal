@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   calculateCost, 
@@ -8,7 +7,8 @@ import {
 } from '@/services/mapService';
 import BookingHeader from './BookingHeader';
 import MapSection from './MapSection';
-import BookingForm from './BookingForm';
+// Fix the import to use named import instead of default import
+import { BookingForm } from './BookingForm';
 import { toast } from 'sonner';
 
 // Use direct import for Google Maps types

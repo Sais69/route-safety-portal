@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -39,7 +40,7 @@ interface IntermediateStop {
   };
 }
 
-interface Booking extends BookingRow {
+interface Booking extends Omit<BookingRow, 'id_conductor'> {
   userData?: BookingUser;
   vehicleType?: string;
   passengerCount?: number;
