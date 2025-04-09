@@ -1,115 +1,29 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { CalendarRange, Search, MapPin, User, Bus, Clock, AlertCircle, CheckCircle, XCircle, Route, ArrowLeft, ExternalLink, Calendar, Filter, Trash2, Users, UserPlus, UserCog, CarTaxiFront, Phone } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from "react-router-dom";
 import { Driver } from "@/types/driver";
-import type { Database } from '@/integrations/supabase/types';
+import { BookingWithDriver } from "./types";
 
-// Custom type for bookings with optional driver info
-interface BookingWithDriver {
-  id: string;
-  user_id: string;
-  user_email?: string;
-  user_metadata?: {
-    first_name?: string;
-    last_name?: string;
-    phone?: string;
-  };
-  departure_date: string;
-  departure_time: string;
-  return_date: string | null;
-  return_time: string | null;
-  round_trip: boolean;
-  origin: string;
-  destination: string;
-  distance: number;
-  duration: string | null;
-  cost: number;
-  status: string;
-  vehicle_type: string;
-  created_at: string;
-  updated_at: string;
-  id_conductor?: string;
-  driver?: Driver | null;
-}
-
-interface FilterOptions {
-  status: string;
-  dateRange: string;
-  searchQuery: string;
-}
+// Component imports
+import BookingsList from "./components/BookingsList";
+import DriversManagement from "./components/DriversManagement";
+import BookingDetails from "./components/BookingDetails";
 
 const AdminPage = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('bookings');
   const [bookings, setBookings] = useState<BookingWithDriver[]>([]);
-  const [filteredBookings, setFilteredBookings] = useState<BookingWithDriver[]>([]);
-  const [filters, setFilters] = useState<FilterOptions>({
-    status: 'all',
-    dateRange: 'all',
-    searchQuery: '',
-  });
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDriver | null>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [isAssigningDriver, setIsAssigningDriver] = useState(false);
-  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  
-  // Driver management states
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [showDriverForm, setShowDriverForm] = useState(false);
-  const [driverToDelete, setDriverToDelete] = useState<string | null>(null);
-  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-  const [newDriver, setNewDriver] = useState<Driver>({
-    nombre: '',
-    apellido: '',
-    numero_celular: '',
-    placa_vehiculo: '',
-    modelo_vehiculo: '',
-    disponible: true,
-  });
-  
-  // Update booking status states
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [newStatus, setNewStatus] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [showAlert, setShowAlert] = useState(false);
-  
-  const statusColors = {
-    pendiente: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    asignada: "bg-blue-100 text-blue-800 border-blue-300",
-    en_curso: "bg-purple-100 text-purple-800 border-purple-300",
-    completada: "bg-green-100 text-green-800 border-green-300",
-    cancelada: "bg-red-100 text-red-800 border-red-300",
-  };
-  
-  const statusLabels = {
-    pendiente: "Pendiente",
-    asignada: "Asignada",
-    en_curso: "En curso",
-    completada: "Completada",
-    cancelada: "Cancelada",
-  };
   
   useEffect(() => {
     if (isAdmin) {
@@ -117,10 +31,6 @@ const AdminPage = () => {
       fetchDrivers();
     }
   }, [isAdmin]);
-  
-  useEffect(() => {
-    applyFilters();
-  }, [filters, bookings]);
   
   const fetchBookings = async () => {
     try {
@@ -180,246 +90,6 @@ const AdminPage = () => {
     }
   };
   
-  // Save or update driver
-  const saveDriver = async () => {
-    try {
-      if (!newDriver.nombre || !newDriver.apellido || !newDriver.numero_celular || !newDriver.placa_vehiculo) {
-        toast.error('Todos los campos son obligatorios');
-        return;
-      }
-      
-      if (editingDriver) {
-        // Update existing driver
-        const driver = { ...newDriver, id: editingDriver.id };
-        
-        const { error } = await supabase
-          .from('drivers')
-          .update({
-            nombre: driver.nombre,
-            apellido: driver.apellido,
-            numero_celular: driver.numero_celular,
-            placa_vehiculo: driver.placa_vehiculo,
-            modelo_vehiculo: driver.modelo_vehiculo,
-            disponible: driver.disponible
-          })
-          .eq('id', driver.id);
-          
-        if (error) throw error;
-        toast.success('Conductor actualizado correctamente');
-      } else {
-        // Insert new driver
-        const { error } = await supabase
-          .from('drivers')
-          .insert({
-            nombre: newDriver.nombre,
-            apellido: newDriver.apellido,
-            numero_celular: newDriver.numero_celular,
-            placa_vehiculo: newDriver.placa_vehiculo,
-            modelo_vehiculo: newDriver.modelo_vehiculo,
-            disponible: newDriver.disponible || true
-          });
-          
-        if (error) throw error;
-        toast.success('Conductor creado correctamente');
-      }
-      
-      // Reset form and fetch updated list
-      resetDriverForm();
-      fetchDrivers();
-      
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Ocurrió un error al guardar el conductor'}`);
-    }
-  };
-  
-  // Delete driver
-  const deleteDriver = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('drivers')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      toast.success('Conductor eliminado correctamente');
-      fetchDrivers();
-      setDriverToDelete(null);
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Ocurrió un error al eliminar el conductor'}`);
-    }
-  };
-  
-  // Handler for selecting a driver to edit
-  const handleEditDriver = (driver: Driver) => {
-    setEditingDriver(driver);
-    setNewDriver({
-      nombre: driver.nombre,
-      apellido: driver.apellido,
-      numero_celular: driver.numero_celular,
-      placa_vehiculo: driver.placa_vehiculo,
-      modelo_vehiculo: driver.modelo_vehiculo || '',
-      disponible: driver.disponible
-    });
-    setShowDriverForm(true);
-  };
-  
-  // Reset driver form
-  const resetDriverForm = () => {
-    setNewDriver({
-      nombre: '',
-      apellido: '',
-      numero_celular: '',
-      placa_vehiculo: '',
-      modelo_vehiculo: '',
-      disponible: true,
-    });
-    setEditingDriver(null);
-    setShowDriverForm(false);
-  };
-  
-  // Assign driver to booking
-  const assignDriver = async () => {
-    if (!selectedBooking || !selectedDriverId) {
-      toast.error('Debe seleccionar un conductor');
-      return;
-    }
-    
-    try {
-      // Get the driver details
-      const { data: driverData, error: driverError } = await supabase
-        .from('drivers')
-        .select('*')
-        .eq('id', selectedDriverId)
-        .single();
-      
-      if (driverError) throw driverError;
-      
-      // Update booking with assigned driver
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          id_conductor: selectedDriverId,
-          status: 'asignada'
-        })
-        .eq('id', selectedBooking.id);
-        
-      if (error) throw error;
-      
-      toast.success(`Conductor ${driverData.nombre} ${driverData.apellido} asignado correctamente`);
-      
-      // Update local state
-      setSelectedBooking({
-        ...selectedBooking,
-        id_conductor: selectedDriverId,
-        status: 'asignada',
-        driver: driverData as Driver
-      });
-      
-      // Refresh bookings list
-      fetchBookings();
-      
-      // Close assignment dialog
-      setIsAssigningDriver(false);
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Ocurrió un error al asignar el conductor'}`);
-    }
-  };
-  
-  // Update booking status
-  const updateBookingStatus = async () => {
-    if (!selectedBooking || !newStatus) {
-      toast.error('Debe seleccionar un estado');
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          status: newStatus
-        })
-        .eq('id', selectedBooking.id);
-        
-      if (error) throw error;
-      
-      toast.success(`Estado de la reserva actualizado a ${statusLabels[newStatus as keyof typeof statusLabels]}`);
-      
-      // Update local state
-      setSelectedBooking({
-        ...selectedBooking,
-        status: newStatus
-      });
-      
-      // Refresh bookings list
-      fetchBookings();
-      
-      // Close status update dialog
-      setUpdatingStatus(false);
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Ocurrió un error al actualizar el estado'}`);
-    }
-  };
-  
-  // Handle filter changes
-  const applyFilters = () => {
-    let filtered = [...bookings];
-    
-    // Filter by status
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(booking => booking.status === filters.status);
-    }
-    
-    // Filter by date range
-    if (filters.dateRange !== 'all') {
-      const now = new Date();
-      
-      switch (filters.dateRange) {
-        case 'today':
-          const today = now.toISOString().split('T')[0];
-          filtered = filtered.filter(booking => booking.departure_date.split('T')[0] === today);
-          break;
-        case 'week':
-          const weekAgo = new Date(now);
-          weekAgo.setDate(now.getDate() - 7);
-          filtered = filtered.filter(booking => new Date(booking.departure_date) >= weekAgo);
-          break;
-        case 'month':
-          const monthAgo = new Date(now);
-          monthAgo.setMonth(now.getMonth() - 1);
-          filtered = filtered.filter(booking => new Date(booking.departure_date) >= monthAgo);
-          break;
-      }
-    }
-    
-    // Filter by search query
-    if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      filtered = filtered.filter(booking => 
-        (booking.origin && booking.origin.toLowerCase().includes(query)) ||
-        (booking.destination && booking.destination.toLowerCase().includes(query)) ||
-        (booking.user_email && booking.user_email.toLowerCase().includes(query)) ||
-        (booking.user_metadata?.first_name && booking.user_metadata.first_name.toLowerCase().includes(query)) ||
-        (booking.user_metadata?.last_name && booking.user_metadata.last_name.toLowerCase().includes(query)) ||
-        (booking.user_metadata?.phone && booking.user_metadata.phone.toLowerCase().includes(query))
-      );
-    }
-    
-    setFilteredBookings(filtered);
-  };
-  
-  // Function to format date for display
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
-  
   // View booking details
   const viewBookingDetails = (booking: BookingWithDriver) => {
     setSelectedBooking(booking);
@@ -455,7 +125,10 @@ const AdminPage = () => {
             Panel de Administración
           </h1>
           <Button 
-            onClick={() => fetchBookings()} 
+            onClick={() => {
+              fetchBookings();
+              fetchDrivers();
+            }} 
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             Actualizar Datos
@@ -474,275 +147,29 @@ const AdminPage = () => {
                   value="bookings"
                   className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                 >
-                  <Bus className="w-4 h-4 mr-2" />
                   Reservas
                 </TabsTrigger>
                 <TabsTrigger 
                   value="drivers"
                   className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
                 >
-                  <User className="w-4 h-4 mr-2" />
                   Conductores
                 </TabsTrigger>
               </TabsList>
               
               <TabsContent value="bookings">
-                {/* Bookings filters */}
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <Input
-                      placeholder="Buscar por origen, destino, email..."
-                      className="pl-10 bg-slate-800 border-slate-700 text-white"
-                      value={filters.searchQuery}
-                      onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
-                    />
-                  </div>
-                  <Select
-                    value={filters.status}
-                    onValueChange={(value) => setFilters({ ...filters, status: value })}
-                  >
-                    <SelectTrigger className="w-full md:w-52 bg-slate-800 border-slate-700 text-white">
-                      <Filter className="w-4 h-4 mr-2 text-slate-400" />
-                      <SelectValue placeholder="Filtrar por estado" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                      <SelectItem value="all">Todos los estados</SelectItem>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="asignada">Asignada</SelectItem>
-                      <SelectItem value="en_curso">En curso</SelectItem>
-                      <SelectItem value="completada">Completada</SelectItem>
-                      <SelectItem value="cancelada">Cancelada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={filters.dateRange}
-                    onValueChange={(value) => setFilters({ ...filters, dateRange: value })}
-                  >
-                    <SelectTrigger className="w-full md:w-52 bg-slate-800 border-slate-700 text-white">
-                      <Calendar className="w-4 h-4 mr-2 text-slate-400" />
-                      <SelectValue placeholder="Filtrar por fecha" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                      <SelectItem value="all">Todas las fechas</SelectItem>
-                      <SelectItem value="today">Hoy</SelectItem>
-                      <SelectItem value="week">Última semana</SelectItem>
-                      <SelectItem value="month">Último mes</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Bookings table */}
-                <div className="overflow-x-auto">
-                  <Table className="w-full border-collapse">
-                    <TableHeader className="bg-slate-800/50">
-                      <TableRow className="border-b border-slate-700">
-                        <TableHead className="text-slate-300 py-3">Estado</TableHead>
-                        <TableHead className="text-slate-300">Cliente</TableHead>
-                        <TableHead className="text-slate-300">Origen</TableHead>
-                        <TableHead className="text-slate-300">Destino</TableHead>
-                        <TableHead className="text-slate-300">Fecha</TableHead>
-                        <TableHead className="text-slate-300">Tipo</TableHead>
-                        <TableHead className="text-slate-300">Monto</TableHead>
-                        <TableHead className="text-slate-300">Conductor</TableHead>
-                        <TableHead className="text-slate-300 text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredBookings.length > 0 ? (
-                        filteredBookings.map((booking) => (
-                          <TableRow 
-                            key={booking.id} 
-                            className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors"
-                          >
-                            <TableCell className="py-4">
-                              <Badge className={`${statusColors[booking.status as keyof typeof statusColors]} border`}>
-                                {statusLabels[booking.status as keyof typeof statusLabels]}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-[180px] truncate">
-                              <div className="flex flex-col">
-                                <span className="font-medium text-white">
-                                  {booking.user_metadata?.first_name} {booking.user_metadata?.last_name}
-                                </span>
-                                <span className="text-xs text-slate-400">{booking.user_email}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[140px] truncate">
-                              <div className="flex items-center">
-                                <MapPin className="w-3 h-3 mr-1.5 text-slate-400 flex-shrink-0" />
-                                <span>{booking.origin}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[140px] truncate">
-                              <div className="flex items-center">
-                                <MapPin className="w-3 h-3 mr-1.5 text-slate-400 flex-shrink-0" />
-                                <span>{booking.destination}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <CalendarRange className="w-3 h-3 mr-1.5 text-slate-400 flex-shrink-0" />
-                                <span>{formatDate(booking.departure_date)}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className="bg-slate-700 text-slate-200">
-                                <Bus className="w-3 h-3 mr-1" />
-                                {booking.vehicle_type}
-                              </Badge>
-                              {booking.round_trip && (
-                                <Badge className="bg-indigo-900 text-indigo-100 ml-1">
-                                  <Route className="w-3 h-3 mr-1" />
-                                  Ida y vuelta
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <span className="font-medium text-green-400">
-                                ${booking.cost}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {booking.driver ? (
-                                <div className="flex items-center">
-                                  <User className="w-3 h-3 mr-1.5 text-blue-400" />
-                                  <span className="text-blue-300">
-                                    {booking.driver.nombre} {booking.driver.apellido}
-                                  </span>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 text-sm italic">No asignado</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
-                                onClick={() => viewBookingDetails(booking)}
-                              >
-                                Detalles
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-slate-400">
-                            No se encontraron reservas con los filtros seleccionados
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                <BookingsList 
+                  bookings={bookings}
+                  onViewDetails={viewBookingDetails}
+                  onRefresh={fetchBookings}
+                />
               </TabsContent>
               
               <TabsContent value="drivers">
-                <div className="mb-6 flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-blue-400">Conductores Disponibles</h2>
-                  <Button 
-                    onClick={() => {
-                      setEditingDriver(null);
-                      setNewDriver({
-                        nombre: '',
-                        apellido: '',
-                        numero_celular: '',
-                        placa_vehiculo: '',
-                        modelo_vehiculo: '',
-                        disponible: true,
-                      });
-                      setShowDriverForm(true);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Agregar Conductor
-                  </Button>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <Table className="w-full border-collapse">
-                    <TableHeader className="bg-slate-800/50">
-                      <TableRow className="border-b border-slate-700">
-                        <TableHead className="text-slate-300">Nombre</TableHead>
-                        <TableHead className="text-slate-300">Contacto</TableHead>
-                        <TableHead className="text-slate-300">Vehículo</TableHead>
-                        <TableHead className="text-slate-300">Estado</TableHead>
-                        <TableHead className="text-slate-300 text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {drivers.length > 0 ? (
-                        drivers.map((driver) => (
-                          <TableRow 
-                            key={driver.id} 
-                            className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors"
-                          >
-                            <TableCell className="py-4">
-                              <div className="flex items-center">
-                                <User className="w-4 h-4 mr-2 text-slate-400" />
-                                <span className="font-medium text-white">
-                                  {driver.nombre} {driver.apellido}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center">
-                                <Phone className="w-4 h-4 mr-2 text-slate-400" />
-                                <span>{driver.numero_celular}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="text-white">
-                                  <CarTaxiFront className="w-3 h-3 inline-block mr-1 text-slate-400" />
-                                  {driver.placa_vehiculo}
-                                </span>
-                                {driver.modelo_vehiculo && (
-                                  <span className="text-xs text-slate-400 mt-0.5">
-                                    Modelo: {driver.modelo_vehiculo}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={driver.disponible ? "bg-green-900/50 text-green-300 border border-green-500/30" : "bg-red-900/50 text-red-300 border border-red-500/30"}>
-                                {driver.disponible ? "Disponible" : "No disponible"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/30"
-                                onClick={() => handleEditDriver(driver)}
-                              >
-                                <UserCog className="w-4 h-4 mr-1" />
-                                Editar
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
-                                onClick={() => setDriverToDelete(driver.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-slate-400">
-                            No hay conductores registrados
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                <DriversManagement 
+                  drivers={drivers}
+                  onRefresh={fetchDrivers}
+                />
               </TabsContent>
             </Tabs>
           </CardContent>
@@ -750,72 +177,16 @@ const AdminPage = () => {
       </main>
       
       {/* Booking Details Dialog */}
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="bg-slate-900 text-white border border-slate-700 max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-blue-400">Detalles de Reserva</DialogTitle>
-          </DialogHeader>
-          
-          {selectedBooking && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-blue-300 flex items-center">
-                  <User className="w-5 h-5 mr-2" />
-                  Información del Cliente
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Nombre:</span>
-                    <span className="font-medium">
-                      {selectedBooking.user_metadata?.first_name} {selectedBooking.user_metadata?.last_name}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Email:</span>
-                    <span className="font-medium">{selectedBooking.user_email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Teléfono:</span>
-                    <span className="font-medium">{selectedBooking.user_metadata?.phone || 'No disponible'}</span>
-                  </div>
-                </div>
-                
-                <h3 className="font-semibold text-lg text-blue-300 flex items-center pt-2">
-                  <Route className="w-5 h-5 mr-2" />
-                  Detalles de la Ruta
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Origen:</span>
-                    <span className="font-medium max-w-[250px] text-right">{selectedBooking.origin}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Destino:</span>
-                    <span className="font-medium max-w-[250px] text-right">{selectedBooking.destination}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Distancia:</span>
-                    <span className="font-medium">{selectedBooking.distance} km</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Duración estimada:</span>
-                    <span className="font-medium">{selectedBooking.duration || 'No disponible'}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg text-blue-300 flex items-center">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Detalles del Viaje
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Fecha de salida:</span>
-                    <span className="font-medium">{formatDate(selectedBooking.departure_date)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Hora de salida:</span>
-                    <span className="font-medium">{selectedBooking.departure_time}</span>
-                  </div>
-                  {selectedBooking.
+      {showDetails && (
+        <BookingDetails
+          booking={selectedBooking}
+          onClose={() => setShowDetails(false)}
+          onRefresh={fetchBookings}
+          drivers={drivers}
+        />
+      )}
+    </div>
+  );
+};
+
+export default AdminPage;
