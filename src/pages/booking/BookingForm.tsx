@@ -29,9 +29,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
-// Remove the MapContext import since it doesn't exist
-// import { useMap } from "@/contexts/MapContext";
-
 const FormSchema = z.object({
   origin: z.string().min(2, {
     message: "El origen debe tener al menos 2 caracteres.",
@@ -57,42 +54,73 @@ const FormSchema = z.object({
   comments: z.string().optional(),
 });
 
-interface BookingFormProps {
-  distanceInKm: number;
-  durationText: string;
+export interface BookingFormProps {
+  vehicleType: string;
+  setVehicleType: React.Dispatch<React.SetStateAction<string>>;
+  roundTrip: boolean;
+  setRoundTrip: React.Dispatch<React.SetStateAction<boolean>>;
+  departureDate: Date | undefined;
+  setDepartureDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
+  departureTime: string;
+  setDepartureTime: React.Dispatch<React.SetStateAction<string>>;
+  returnDate: Date | undefined;
+  setReturnDate: React.Dispatch<React.SetStateAction<Date | undefined>>;
+  returnTime: string;
+  setReturnTime: React.Dispatch<React.SetStateAction<string>>;
+  distance: number;
   totalCost: number;
-  originCoords: { lat: number | null, lng: number | null } | null;
-  destinationCoords: { lat: number | null, lng: number | null } | null;
-  intermediateStops: { address: string, coords: { lat: number | null, lng: number | null } | null }[];
+  origin: string;
+  destination: string;
+  originCoords: google.maps.LatLngLiteral | null;
+  destinationCoords: google.maps.LatLngLiteral | null;
+  intermediateStops: { address: string, coords: { lat: number, lng: number } }[];
+  duration: string;
+  returnDistance: number;
+  returnDuration: string;
 }
 
 export function BookingForm({
-  distanceInKm,
-  durationText,
+  vehicleType,
+  setVehicleType,
+  roundTrip,
+  setRoundTrip,
+  departureDate,
+  setDepartureDate,
+  departureTime,
+  setDepartureTime,
+  returnDate,
+  setReturnDate,
+  returnTime,
+  setReturnTime,
+  distance,
   totalCost,
+  origin,
+  destination,
   originCoords,
   destinationCoords,
-  intermediateStops
+  intermediateStops,
+  duration,
+  returnDistance,
+  returnDuration
 }: BookingFormProps) {
-  // ... keep existing code (component implementation)
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [departureDate, setDepartureDate] = React.useState<Date | undefined>(new Date());
-  const [returnDate, setReturnDate] = React.useState<Date | undefined>(new Date());
+  const [departureDateState, setDepartureDateState] = React.useState<Date | undefined>(new Date());
+  const [returnDateState, setReturnDateState] = React.useState<Date | undefined>(new Date());
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      origin: "",
-      destination: "",
-      departureDate: new Date(),
-      departureTime: "08:00",
-      returnDate: new Date(),
-      returnTime: "18:00",
-      roundTrip: false,
-      vehicleType: "taxi",
+      origin: origin || "",
+      destination: destination || "",
+      departureDate: departureDate || new Date(),
+      departureTime: departureTime || "08:00",
+      returnDate: returnDate || new Date(),
+      returnTime: returnTime || "18:00",
+      roundTrip: roundTrip || false,
+      vehicleType: vehicleType || "taxi",
       passengerCount: "1",
       comments: "",
     },
@@ -124,13 +152,13 @@ export function BookingForm({
               address: stop.address, 
               coords: { lat: stop.coords?.lat, lng: stop.coords?.lng } 
             })) : [],
-          departure_date: departureDate.toISOString(),
+          departure_date: departureDateState?.toISOString() || new Date().toISOString(),
           departure_time: values.departureTime,
-          return_date: values.roundTrip && returnDate ? returnDate.toISOString() : null,
+          return_date: values.roundTrip && returnDateState ? returnDateState.toISOString() : null,
           return_time: values.roundTrip && values.returnTime ? values.returnTime : null,
           round_trip: values.roundTrip,
-          distance: distanceInKm,
-          duration: durationText,
+          distance: distance,
+          duration: duration,
           vehicle_type: values.vehicleType,
           passenger_count: parseInt(values.passengerCount),
           cost: totalCost
@@ -213,11 +241,11 @@ export function BookingForm({
                           variant={"outline"}
                           className={cn(
                             "w-[240px] pl-3 text-left font-normal",
-                            !departureDate && "text-muted-foreground"
+                            !departureDateState && "text-muted-foreground"
                           )}
                         >
-                          {departureDate ? (
-                            format(departureDate, "PPP")
+                          {departureDateState ? (
+                            format(departureDateState, "PPP")
                           ) : (
                             <span>Pick a date</span>
                           )}
@@ -228,8 +256,8 @@ export function BookingForm({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={departureDate}
-                        onSelect={setDepartureDate}
+                        selected={departureDateState}
+                        onSelect={setDepartureDateState}
                         disabled={(date) =>
                           date < new Date()
                         }
@@ -296,11 +324,11 @@ export function BookingForm({
                             variant={"outline"}
                             className={cn(
                               "w-[240px] pl-3 text-left font-normal",
-                              !returnDate && "text-muted-foreground"
+                              !returnDateState && "text-muted-foreground"
                             )}
                           >
-                            {returnDate ? (
-                              format(returnDate, "PPP")
+                            {returnDateState ? (
+                              format(returnDateState, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -311,10 +339,10 @@ export function BookingForm({
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={returnDate}
-                          onSelect={setReturnDate}
+                          selected={returnDateState}
+                          onSelect={setReturnDateState}
                           disabled={(date) =>
-                            date < new Date() || (departureDate && date < departureDate)
+                            date < new Date() || (departureDateState && date < departureDateState)
                           }
                           initialFocus
                         />
