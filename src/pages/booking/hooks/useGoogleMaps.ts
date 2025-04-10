@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { 
@@ -71,10 +72,10 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         
         // Step 4: Ensure the map container element is ready
         console.log("Waiting for map container element to be ready...");
-        await ensureMapElementReady(mapRef);
+        const mapElement = await ensureMapElementReady(mapRef);
         
         // Step 5: Initialize the map
-        if (!mapRef.current) {
+        if (!mapElement) {
           throw new Error("Map container element not available");
         }
         
@@ -112,7 +113,7 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         };
 
         // Use our enhanced map creation function
-        const newMap = await createOrGetMapInstance(mapRef, mapOptions, mapInstanceId.current);
+        const newMap = createOrGetMapInstance(mapElement, mapOptions, mapInstanceId.current);
         setMap(newMap);
         console.log("Map instance created successfully");
 
@@ -134,25 +135,27 @@ export const useGoogleMaps = (mapRef: React.RefObject<HTMLDivElement>, isReloadi
         });
 
         // Create directions renderer
-        const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({
-          map: newMap,
-          suppressMarkers: true, // Suppress default markers so we can use our own draggable ones
-          polylineOptions: {
-            strokeColor: '#3b82f6',
-            strokeWeight: 5,
-            strokeOpacity: 0.8
-          }
-        });
-        
-        setDirectionsRenderer(newDirectionsRenderer);
-        console.log("Directions renderer created successfully");
-        
-        // Place a marker at the center to confirm map is working
-        new google.maps.Marker({
-          position: mapOptions.center,
-          map: newMap,
-          title: "Mapa cargado correctamente"
-        });
+        if (newMap) {
+          const newDirectionsRenderer = new window.google.maps.DirectionsRenderer({
+            map: newMap,
+            suppressMarkers: true, // Suppress default markers so we can use our own draggable ones
+            polylineOptions: {
+              strokeColor: '#3b82f6',
+              strokeWeight: 5,
+              strokeOpacity: 0.8
+            }
+          });
+          
+          setDirectionsRenderer(newDirectionsRenderer);
+          console.log("Directions renderer created successfully");
+          
+          // Place a marker at the center to confirm map is working
+          new google.maps.Marker({
+            position: mapOptions.center,
+            map: newMap,
+            title: "Mapa cargado correctamente"
+          });
+        }
         
         // Reset error state and initialization flag
         setMapInitError(null);

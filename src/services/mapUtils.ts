@@ -26,20 +26,23 @@ export const getMapInstanceFromElement = (element: Element | null): google.maps.
 
 // Function to make sure the map element is ready before initializing the map
 export function ensureMapElementReady(
-  mapRef: React.RefObject<HTMLDivElement>,
-  callback: (element: HTMLDivElement) => void
-): void {
-  if (mapRef.current) {
-    callback(mapRef.current);
-  } else {
-    console.warn('Map element not ready');
-  }
+  mapRef: React.RefObject<HTMLDivElement>
+): Promise<HTMLDivElement> {
+  return new Promise((resolve, reject) => {
+    if (mapRef.current) {
+      resolve(mapRef.current);
+    } else {
+      console.warn('Map element not ready');
+      reject(new Error('Map element not ready'));
+    }
+  });
 }
 
 // Function to create or get a map instance
 export function createOrGetMapInstance(
   element: HTMLElement,
-  options: google.maps.MapOptions
+  options: google.maps.MapOptions,
+  instanceId?: string
 ): google.maps.Map | null {
   try {
     if (!window.google || !window.google.maps) {
