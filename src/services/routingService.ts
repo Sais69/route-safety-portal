@@ -6,7 +6,12 @@ export const calculateDistance = (distance: number): number => {
   return Math.round(distance * 100) / 100;
 };
 
-export const calculateCost = (vehicleType: string, distance: number, roundTrip: boolean): string => {
+export const calculateCost = (
+  vehicleType: string, 
+  outboundDistance: number, 
+  returnDistance: number = 0, 
+  isRoundTrip: boolean
+): string => {
   try {
     // Base rates per kilometer in dollars - UPDATED VALUES
     const rates = {
@@ -17,14 +22,18 @@ export const calculateCost = (vehicleType: string, distance: number, roundTrip: 
       microbus: 1.29
     };
     
-    // Get the rate for the vehicle type, default to sedan rate if not found
-    const rate = rates[vehicleType as keyof typeof rates] || rates.sedan;
+    // Get the rate for the vehicle type, default to furgoneta rate if not found
+    const rate = rates[vehicleType as keyof typeof rates] || rates.furgoneta;
     
-    // Calculate cost based on distance and vehicle type
-    let cost = distance * rate;
+    // Calculate cost based on outbound distance
+    let cost = outboundDistance * rate;
     
-    // Add 20% for round trip if selected
-    if (roundTrip) {
+    // Add return trip cost if selected
+    if (isRoundTrip && returnDistance > 0) {
+      // Use actual return distance if available
+      cost += returnDistance * rate;
+    } else if (isRoundTrip) {
+      // Use 20% markup on outbound distance as fallback
       cost = cost * 1.2;
     }
     

@@ -30,7 +30,7 @@ const BookingPage: React.FC = () => {
   const [returnDistance, setReturnDistance] = useState<number>(0);
   const [returnDuration, setReturnDuration] = useState<string>('');
 
-  // Form related states
+  // Form related states - Set default vehicle type to "furgoneta"
   const [vehicleType, setVehicleType] = useState('furgoneta');
   const [roundTrip, setRoundTrip] = useState(false);
   const [departureDate, setDepartureDate] = useState<Date | undefined>(new Date());
@@ -131,26 +131,30 @@ const BookingPage: React.FC = () => {
             setDuration(`${hours}h ${minutes}m`);
           }
           
-          updateCost(distance);
+          updateCost();
         } else {
           console.error('Directions request failed with status: ', status);
           toast.error('Error al calcular la ruta. Por favor, inténtelo de nuevo.');
         }
       }
     );
-  }, [origin, destination, intermediateStops, distance]);
+  }, [origin, destination, intermediateStops]);
 
-  
-  // Update cost based on vehicle type and distance
-  const updateCost = (distance: number) => {
-    const costString = calculateCost(vehicleType, distance, roundTrip);
+  // Update cost based on vehicle type, outbound distance, and return distance
+  const updateCost = useCallback(() => {
+    const costString = calculateCost(
+      vehicleType, 
+      distance, 
+      returnDistance, 
+      roundTrip
+    );
     setTotalCost(Number(costString));
-  };
+  }, [vehicleType, distance, returnDistance, roundTrip]);
 
   // Update cost when relevant factors change
   React.useEffect(() => {
-    updateCost(distance);
-  }, [vehicleType, distance, roundTrip]);
+    updateCost();
+  }, [vehicleType, distance, returnDistance, roundTrip, updateCost]);
 
   // Handle form submission and save to database
   const handleBookingSubmit = async (userData: any) => {
@@ -167,41 +171,42 @@ const BookingPage: React.FC = () => {
     // Disable submit to prevent multiple submissions
     setIsSubmitting(true);
 
-    // Prepare booking data with proper type conversion for Supabase
-    const bookingData = {
-      origin: originPlace,
-      destination: destinationPlace,
-      origin_coords: { 
-        lat: origin.lat, 
-        lng: origin.lng 
-      },
-      destination_coords: { 
-        lat: destination.lat, 
-        lng: destination.lng 
-      },
-      intermediate_stops: intermediateStops.map(stop => ({
-        id: stop.id,
-        placeName: stop.placeName,
-        location: { 
-          lat: stop.location.lat, 
-          lng: stop.location.lng 
-        }
-      })),
-      departure_date: departureDate?.toISOString(),
-      departure_time: departureTime,
-      return_date: roundTrip ? returnDate?.toISOString() : null,
-      return_time: roundTrip ? returnTime : null,
-      vehicle_type: vehicleType,
-      round_trip: roundTrip,
-      distance: distance,
-      cost: totalCost,
-      duration: duration,
-      user_id: userData.userId,
-      status: 'pendiente',
-      passenger_count: userData.passengerCount || 1
-    };
-
     try {
+      // Prepare booking data with proper type conversion for Supabase
+      // Convert coordinates to JSON-compatible format
+      const bookingData = {
+        origin: originPlace,
+        destination: destinationPlace,
+        origin_coords: { 
+          lat: origin.lat, 
+          lng: origin.lng 
+        },
+        destination_coords: { 
+          lat: destination.lat, 
+          lng: destination.lng 
+        },
+        intermediate_stops: intermediateStops.map(stop => ({
+          id: stop.id,
+          placeName: stop.placeName,
+          location: { 
+            lat: stop.location.lat, 
+            lng: stop.location.lng 
+          }
+        })),
+        departure_date: departureDate?.toISOString(),
+        departure_time: departureTime,
+        return_date: roundTrip ? returnDate?.toISOString() : null,
+        return_time: roundTrip ? returnTime : null,
+        vehicle_type: vehicleType,
+        round_trip: roundTrip,
+        distance: distance,
+        cost: totalCost,
+        duration: duration,
+        user_id: userData.userId,
+        status: 'pendiente',
+        passenger_count: userData.passengerCount || 1
+      };
+
       // Insert into bookings table
       const { data, error } = await supabase
         .from('bookings')
@@ -237,7 +242,9 @@ const BookingPage: React.FC = () => {
     }
   };
 
+  
   return (
+    
     <div className="min-h-screen bg-gradient-to-b from-background to-slate-900">
       {/* Navigation header */}
       <BookingHeader />
