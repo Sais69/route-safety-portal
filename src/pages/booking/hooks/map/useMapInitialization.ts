@@ -93,7 +93,7 @@ export const useMapInitialization = ({ mapRef, isReloadingMap }: UseMapInitializ
           zoomControl: true,
           mapTypeControl: true,
           streetViewControl: false,
-          // Use a much simpler style to avoid rendering issues
+          // Use a simpler style to avoid rendering issues
           styles: [
             {
               "featureType": "administrative",
@@ -126,32 +126,33 @@ export const useMapInitialization = ({ mapRef, isReloadingMap }: UseMapInitializ
         console.log("Map instance created successfully");
 
         // Force resize events to ensure proper rendering
-        [100, 300, 500, 1000, 2000].forEach(timeout => {
+        const resizeTimes = [100, 300, 500, 1000, 2000, 5000];
+        resizeTimes.forEach(timeout => {
           setTimeout(() => {
             if (newMap) {
               window.google.maps.event.trigger(newMap, 'resize');
               newMap.setZoom(newMap.getZoom() || 11); // Force redraw
-              
-              // Add a marker to the center to confirm map is working
-              new google.maps.Marker({
-                position: newMap.getCenter() || { lat: -0.1807, lng: -78.4678 },
-                map: newMap,
-                title: "Mapa cargado correctamente"
-              });
             }
           }, timeout);
         });
 
-        // Monitor viewport changes to handle resize
-        window.addEventListener('resize', () => {
+        // Add resize listener for better responsiveness
+        const resizeListener = () => {
           if (newMap) {
             window.google.maps.event.trigger(newMap, 'resize');
           }
-        });
+        };
+        
+        window.addEventListener('resize', resizeListener);
         
         // Reset error state and initialization flag
         setMapInitError(null);
         isInitializing.current = false;
+        
+        // Return cleanup function
+        return () => {
+          window.removeEventListener('resize', resizeListener);
+        };
         
       } catch (error) {
         // Handle initialization errors

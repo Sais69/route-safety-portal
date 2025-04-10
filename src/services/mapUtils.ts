@@ -1,3 +1,4 @@
+
 // Helper function to safely get a map instance from the DOM element
 export const getMapInstanceFromElement = (element: Element | null): google.maps.Map | null => {
   if (!element || !window.google?.maps?.Map) return null;
@@ -7,7 +8,7 @@ export const getMapInstanceFromElement = (element: Element | null): google.maps.
     const maps = window.google.maps;
     
     // Access the instances array through the constructor
-    // This is a bit hacky but necessary to get the map instance from the DOM
+    // This es necesario para obtener la instancia del mapa desde el DOM
     const instances = (maps.Map as any).instances;
     
     if (!instances || !Array.isArray(instances)) {
@@ -29,16 +30,30 @@ export function ensureMapElementReady(
   mapRef: React.RefObject<HTMLDivElement>
 ): Promise<HTMLDivElement> {
   return new Promise((resolve, reject) => {
+    // Check if the element is already available
     if (mapRef.current) {
       resolve(mapRef.current);
-    } else {
-      console.warn('Map element not ready');
-      reject(new Error('Map element not ready'));
+      return;
     }
+    
+    // If not, set up a small polling mechanism to wait for it
+    let attempts = 0;
+    const maxAttempts = 10;
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (mapRef.current) {
+        clearInterval(checkInterval);
+        resolve(mapRef.current);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        console.warn('Map element not ready after multiple attempts');
+        reject(new Error('Map element not ready after multiple attempts'));
+      }
+    }, 200);
   });
 }
 
-// Function to create or get a map instance
+// Function to create or get a map instance with improved error handling
 export function createOrGetMapInstance(
   element: HTMLElement,
   options: google.maps.MapOptions,
@@ -53,17 +68,38 @@ export function createOrGetMapInstance(
     // Check if a map is already associated with this element
     const existingMap = getMapInstanceFromElement(element);
     if (existingMap) {
+      console.log("Returning existing map instance", instanceId);
+      
+      // Ensure the map is properly sized and centered
+      setTimeout(() => {
+        window.google.maps.event.trigger(existingMap, 'resize');
+        if (options.center) {
+          existingMap.setCenter(options.center);
+        }
+      }, 100);
+      
       return existingMap;
     }
     
-    // Otherwise create a new map
+    // Clean the element before creating a new map
+    // This helps prevent issues with multiple maps in the same container
+    while (element.firstChild) {
+      element.removeChild(element.firstChild);
+    }
+    
+    // Create a new map
     const newMap = new window.google.maps.Map(element, options);
     console.log("Created new map instance", instanceId);
     
     // Trigger resize events to ensure proper rendering
-    setTimeout(() => {
-      window.google.maps.event.trigger(newMap, 'resize');
-    }, 100);
+    const resizeTimes = [100, 300, 500, 1000];
+    resizeTimes.forEach(time => {
+      setTimeout(() => {
+        if (newMap) {
+          window.google.maps.event.trigger(newMap, 'resize');
+        }
+      }, time);
+    });
     
     return newMap;
   } catch (error) {

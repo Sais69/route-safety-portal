@@ -8,13 +8,13 @@ export const calculateDistance = (distance: number): number => {
 
 export const calculateCost = (vehicleType: string, distance: number, roundTrip: boolean): string => {
   try {
-    // Base rates per kilometer in dollars
+    // Base rates per kilometer in dollars - UPDATED VALUES
     const rates = {
       sedan: 0.50,
       suv: 0.65,
-      furgoneta: 0.80,
-      bus: 1.20,
-      microbus: 0.95
+      furgoneta: 0.89,
+      bus: 1.69,
+      microbus: 1.29
     };
     
     // Get the rate for the vehicle type, default to sedan rate if not found

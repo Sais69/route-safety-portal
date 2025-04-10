@@ -16,24 +16,14 @@ export const loadGoogleMapsScript = (): Promise<void> => {
     mapTrackingDiv.id = 'google-maps-loading-status';
     document.body.appendChild(mapTrackingDiv);
 
-    console.log('Loading Google Maps with API key:', GOOGLE_MAPS_API_KEY.substring(0, 5) + '...');
+    console.log('Loading Google Maps with API key:', GOOGLE_MAPS_API_KEY ? 'Available' : 'Not available');
 
     try {
       // Remove any existing script tags to prevent duplicates
       const existingScripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
       existingScripts.forEach(script => script.remove());
 
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap&v=weekly&loading=async`;
-      script.async = true;
-      script.defer = true;
-      
-      // Add additional script properties for better loading
-      script.id = 'google-maps-script';
-      script.crossOrigin = "anonymous";
-      script.type = "text/javascript";
-
-      // Setup global callback that the API will call when loaded
+      // Set a global callback that will be called when the API loads
       window.initMap = () => {
         console.log('Google Maps API loaded via callback');
         if (document.body.contains(mapTrackingDiv)) {
@@ -42,7 +32,16 @@ export const loadGoogleMapsScript = (): Promise<void> => {
         resolve();
       };
 
-      // Setup event handlers for success and failure
+      // Create the script element
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap&v=weekly`;
+      script.async = true;
+      script.defer = true;
+      script.id = 'google-maps-script';
+      script.crossOrigin = "anonymous";
+      script.type = "text/javascript";
+      
+      // Handle success and error cases
       script.onload = () => {
         console.log('Google Maps script tag loaded (onload event)');
         
@@ -83,7 +82,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
           }
           reject(new Error('Google Maps API initialization timed out'));
         }
-      }, 15000); // 15 seconds timeout (increased from 10)
+      }, 20000); // 20 seconds timeout (increased from 15)
     } catch (error) {
       console.error('Error setting up Google Maps script:', error);
       if (document.body.contains(mapTrackingDiv)) {
