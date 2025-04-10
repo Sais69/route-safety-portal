@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   calculateCost, 
@@ -10,6 +11,7 @@ import MapSection from './MapSection';
 import { BookingForm } from './BookingForm';
 import { toast } from 'sonner';
 import { Stop } from './types/map';
+import { supabase } from '@/integrations/supabase/client';
 
 const BookingPage: React.FC = () => {
   // Map related states
@@ -37,6 +39,7 @@ const BookingPage: React.FC = () => {
   const [returnDate, setReturnDate] = useState<Date | undefined>(new Date());
   const [returnTime, setReturnTime] = useState('18:00');
   const [totalCost, setTotalCost] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load Google Maps when the component mounts with retry mechanism
   useEffect(() => {
@@ -149,6 +152,82 @@ const BookingPage: React.FC = () => {
     updateCost(distance);
   }, [vehicleType, distance, roundTrip]);
 
+  // Handle form submission and save to database
+  const handleBookingSubmit = async (userData: any) => {
+    if (!origin || !destination) {
+      toast.error('Por favor seleccione origen y destino');
+      return;
+    }
+    
+    if (distance <= 0) {
+      toast.error('Error al calcular la distancia del viaje');
+      return;
+    }
+    
+    // Disable submit to prevent multiple submissions
+    setIsSubmitting(true);
+
+    // Prepare booking data
+    const bookingData = {
+      origin: originPlace,
+      destination: destinationPlace,
+      origin_coords: origin,
+      destination_coords: destination,
+      intermediate_stops: intermediateStops.map(stop => ({
+        id: stop.id,
+        placeName: stop.placeName,
+        location: stop.location
+      })),
+      departure_date: departureDate?.toISOString(),
+      departure_time: departureTime,
+      return_date: roundTrip ? returnDate?.toISOString() : null,
+      return_time: roundTrip ? returnTime : null,
+      vehicle_type: vehicleType,
+      round_trip: roundTrip,
+      distance: distance,
+      cost: totalCost,
+      duration: duration,
+      user_id: userData.userId,
+      status: 'pendiente',
+      passenger_count: userData.passengerCount || 1
+    };
+
+    try {
+      // Insert into bookings table
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert(bookingData)
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast.success('¡Reserva creada con éxito!', {
+        description: 'Hemos recibido su solicitud de viaje.',
+      });
+      
+      // Reset form after successful submission
+      setTimeout(() => {
+        setOrigin(null);
+        setDestination(null);
+        setOriginPlace('');
+        setDestinationPlace('');
+        setIntermediateStops([]);
+        setDistance(0);
+        setDuration('');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error al guardar la reserva:', error);
+      toast.error('Error al guardar la reserva', {
+        description: error.message || 'Por favor intente de nuevo más tarde',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-slate-900">
       {/* Navigation header */}
@@ -233,6 +312,8 @@ const BookingPage: React.FC = () => {
               duration={duration}
               returnDistance={returnDistance}
               returnDuration={returnDuration}
+              onSubmit={handleBookingSubmit}
+              isSubmitting={isSubmitting}
             />
           </div>
         </div>

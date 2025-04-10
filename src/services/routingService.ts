@@ -1,98 +1,113 @@
 
-// Function to calculate the distance between two points
-export const calculateDistance = (origin: google.maps.LatLngLiteral, destination: google.maps.LatLngLiteral): number => {
-  const R = 6371; // Radius of the earth in km
-  const lat1 = origin.lat * Math.PI / 180;
-  const lon1 = origin.lng * Math.PI / 180;
-  const lat2 = destination.lat * Math.PI / 180;
-  const lon2 = destination.lng * Math.PI / 180;
+import { toast } from "sonner";
 
-  const dlon = lon2 - lon1;
-  const dlat = lat2 - lat1;
-
-  const a = Math.sin(dlat / 2)**2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2)**2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  const distance = R * c;
-  return distance;
+export const calculateDistance = (distance: number): number => {
+  // Round to 2 decimal places
+  return Math.round(distance * 100) / 100;
 };
 
-// Function to calculate the cost of the trip
-export const calculateCost = (vehicleType: string, distance: number, roundTrip: boolean = false): string => {
-  const pricePerKm = {
-    furgoneta: 0.89,
-    microbus: 1.29,
-    bus: 1.69,
-    taxi: 0.60
-  };
-
-  const ratePerKm = pricePerKm[vehicleType as keyof typeof pricePerKm] || 0.89;
-  const totalDistance = roundTrip ? distance * 2 : distance;
-  const cost = totalDistance * ratePerKm;
-
-  return cost.toFixed(2);
+export const calculateCost = (vehicleType: string, distance: number, roundTrip: boolean): string => {
+  try {
+    // Base rates per kilometer in dollars
+    const rates = {
+      sedan: 0.50,
+      suv: 0.65,
+      furgoneta: 0.80,
+      bus: 1.20
+    };
+    
+    // Get the rate for the vehicle type, default to sedan rate if not found
+    const rate = rates[vehicleType as keyof typeof rates] || rates.sedan;
+    
+    // Calculate cost based on distance and vehicle type
+    let cost = distance * rate;
+    
+    // Add 20% for round trip if selected
+    if (roundTrip) {
+      cost = cost * 1.2;
+    }
+    
+    // Ensure minimum cost
+    const minimumCost = 15;
+    cost = Math.max(cost, minimumCost);
+    
+    // Format the cost to two decimal places
+    return cost.toFixed(2);
+  } catch (error) {
+    console.error("Error calculating cost:", error);
+    toast.error("Error al calcular el costo del viaje");
+    return "0.00";
+  }
 };
 
-// Function to calculate return route using Google Maps Directions API
-export const calculateReturnRoute = (
-  origin: google.maps.LatLngLiteral,
+export const calculateReturnRoute = async (
+  origin: google.maps.LatLngLiteral, 
   destination: google.maps.LatLngLiteral,
   intermediateStops: Array<{
     id: string;
     placeName: string;
     location: google.maps.LatLngLiteral;
   }>
-): Promise<{ distance: number; duration: string }> => {
+): Promise<{distance: number, duration: string}> => {
   return new Promise((resolve, reject) => {
-    if (!window.google || !window.google.maps) {
-      reject(new Error('Google Maps API not loaded'));
-      return;
-    }
-
-    const directionsService = new window.google.maps.DirectionsService();
-    const waypoints = intermediateStops.map((stop) => ({
-      location: stop.location,
-      stopover: true,
-    }));
-
-    directionsService.route(
-      {
-        origin: origin,
-        destination: destination,
-        waypoints: waypoints,
-        optimizeWaypoints: false,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          let totalDistance = 0;
-          let totalDurationValue = 0;
-          let formattedDuration = "";
-          
-          const legs = result.routes[0].legs;
-          for (let i = 0; i < legs.length; i++) {
-            totalDistance += legs[i].distance.value;
-            totalDurationValue += legs[i].duration.value;
-          }
-          
-          // Format duration in hours and minutes
-          const hours = Math.floor(totalDurationValue / 3600);
-          const minutes = Math.floor((totalDurationValue % 3600) / 60);
-          
-          if (hours > 0) {
-            formattedDuration = `${hours}h ${minutes}m`;
-          } else {
-            formattedDuration = `${minutes}m`;
-          }
-
-          resolve({
-            distance: totalDistance / 1000, // Convert meters to kilometers
-            duration: formattedDuration,
-          });
-        } else {
-          reject(new Error('Directions request failed with status: ' + status));
-        }
+    try {
+      if (!window.google || !window.google.maps) {
+        reject(new Error("Google Maps no está cargado"));
+        return;
       }
-    );
+
+      const directionsService = new window.google.maps.DirectionsService();
+      
+      // Prepare waypoints from intermediate stops
+      const waypoints = intermediateStops.map((stop) => ({
+        location: stop.location,
+        stopover: true,
+      }));
+
+      directionsService.route(
+        {
+          origin: origin,
+          destination: destination,
+          waypoints: waypoints,
+          optimizeWaypoints: false,
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK && result) {
+            // Calculate total distance
+            let totalDistance = 0;
+            let totalDuration = 0;
+
+            const route = result.routes[0];
+            if (route && route.legs.length > 0) {
+              for (let i = 0; i < route.legs.length; i++) {
+                totalDistance += route.legs[i].distance?.value || 0;
+                totalDuration += route.legs[i].duration?.value || 0;
+              }
+              
+              // Convert distance from meters to kilometers
+              totalDistance = totalDistance / 1000;
+              
+              // Format duration
+              const hours = Math.floor(totalDuration / 3600);
+              const minutes = Math.floor((totalDuration % 3600) / 60);
+              const durationString = `${hours}h ${minutes}m`;
+              
+              resolve({
+                distance: totalDistance,
+                duration: durationString
+              });
+            } else {
+              reject(new Error("No se pudo calcular la ruta de retorno"));
+            }
+          } else {
+            reject(new Error(`Error en la solicitud de direcciones: ${status}`));
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error calculando ruta de retorno:", error);
+      reject(error);
+    }
   });
 };

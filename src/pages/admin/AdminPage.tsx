@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,7 @@ const AdminPage = () => {
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDriver | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [newBookingsCount, setNewBookingsCount] = useState(0);
   
   useEffect(() => {
     if (isAdmin) {
@@ -32,13 +33,13 @@ const AdminPage = () => {
       fetchDrivers();
       
       // Set up real-time listener for new bookings
-      setupBookingsSubscription();
+      const channel = setupBookingsSubscription();
+      
+      // Cleanup function
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
-    
-    // Cleanup function
-    return () => {
-      cleanupSubscriptions();
-    };
   }, [isAdmin]);
   
   // Setup realtime subscription for bookings
@@ -55,8 +56,13 @@ const AdminPage = () => {
           console.log('New booking received:', payload);
           // When a new booking is inserted, refresh the bookings list
           fetchBookings();
+          setNewBookingsCount(prev => prev + 1);
           toast.info('Nueva reserva recibida', {
             description: `Se ha recibido una nueva reserva`,
+            action: {
+              label: "Ver",
+              onClick: () => setActiveTab('bookings')
+            }
           });
         }
       )
@@ -77,11 +83,6 @@ const AdminPage = () => {
     console.log('Subscribed to bookings changes');
     
     return channel;
-  };
-  
-  // Cleanup subscriptions on component unmount
-  const cleanupSubscriptions = () => {
-    supabase.removeAllChannels();
   };
   
   const fetchBookings = async () => {
@@ -115,6 +116,7 @@ const AdminPage = () => {
         
         setBookings(processedBookings);
         console.log("Loaded bookings:", processedBookings.length);
+        setNewBookingsCount(0); // Reset counter when loading new bookings
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -149,6 +151,15 @@ const AdminPage = () => {
   const viewBookingDetails = (booking: BookingWithDriver) => {
     setSelectedBooking(booking);
     setShowDetails(true);
+  };
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Reset new bookings counter when switching to bookings tab
+    if (value === 'bookings') {
+      setNewBookingsCount(0);
+    }
   };
   
   return (
@@ -195,15 +206,21 @@ const AdminPage = () => {
           <CardContent className="pt-6">
             <Tabs 
               defaultValue="bookings" 
-              onValueChange={(value) => setActiveTab(value)}
+              onValueChange={handleTabChange}
               value={activeTab}
             >
               <TabsList className="mb-6 bg-slate-800">
                 <TabsTrigger 
                   value="bookings"
-                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                  className="data-[state=active]:bg-blue-600 data-[state=active]:text-white flex items-center"
                 >
                   Reservas
+                  {newBookingsCount > 0 && (
+                    <Badge className="ml-2 bg-red-500 text-white">
+                      {newBookingsCount}
+                      <Bell className="w-3 h-3 ml-1" />
+                    </Badge>
+                  )}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="drivers"

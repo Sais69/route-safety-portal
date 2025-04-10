@@ -67,7 +67,7 @@ export const useMapInitialization = ({ mapRef, isReloadingMap }: UseMapInitializ
         }
         
         // Step 3: Wait a bit to ensure the scripts are fully initialized
-        await new Promise<void>(resolve => setTimeout(resolve, 300));
+        await new Promise<void>(resolve => setTimeout(resolve, 500));
         
         // Double check that maps is loaded
         if (!window.google || !window.google.maps) {
@@ -118,15 +118,26 @@ export const useMapInitialization = ({ mapRef, isReloadingMap }: UseMapInitializ
 
         // Use our enhanced map creation function
         const newMap = createOrGetMapInstance(mapElement, mapOptions, mapInstanceId.current);
+        if (!newMap) {
+          throw new Error("Failed to create map instance");
+        }
+        
         setMap(newMap);
         console.log("Map instance created successfully");
 
         // Force resize events to ensure proper rendering
-        [100, 300, 500, 1000].forEach(timeout => {
+        [100, 300, 500, 1000, 2000].forEach(timeout => {
           setTimeout(() => {
             if (newMap) {
               window.google.maps.event.trigger(newMap, 'resize');
               newMap.setZoom(newMap.getZoom() || 11); // Force redraw
+              
+              // Add a marker to the center to confirm map is working
+              new google.maps.Marker({
+                position: newMap.getCenter() || { lat: -0.1807, lng: -78.4678 },
+                map: newMap,
+                title: "Mapa cargado correctamente"
+              });
             }
           }, timeout);
         });

@@ -57,7 +57,15 @@ export function createOrGetMapInstance(
     }
     
     // Otherwise create a new map
-    return new window.google.maps.Map(element, options);
+    const newMap = new window.google.maps.Map(element, options);
+    console.log("Created new map instance", instanceId);
+    
+    // Trigger resize events to ensure proper rendering
+    setTimeout(() => {
+      window.google.maps.event.trigger(newMap, 'resize');
+    }, 100);
+    
+    return newMap;
   } catch (error) {
     console.error('Error creating map:', error);
     return null;

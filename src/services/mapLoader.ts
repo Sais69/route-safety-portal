@@ -31,6 +31,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
       // Add additional script properties for better loading
       script.id = 'google-maps-script';
       script.crossOrigin = "anonymous";
+      script.type = "text/javascript";
 
       // Setup global callback that the API will call when loaded
       window.initMap = () => {
@@ -82,7 +83,7 @@ export const loadGoogleMapsScript = (): Promise<void> => {
           }
           reject(new Error('Google Maps API initialization timed out'));
         }
-      }, 10000); // 10 seconds timeout
+      }, 15000); // 15 seconds timeout (increased from 10)
     } catch (error) {
       console.error('Error setting up Google Maps script:', error);
       if (document.body.contains(mapTrackingDiv)) {
