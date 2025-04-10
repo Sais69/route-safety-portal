@@ -16,4 +16,3 @@ export {
   calculateCost,
   calculateReturnRoute
 } from './routingService';
-
