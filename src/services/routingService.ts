@@ -13,7 +13,8 @@ export const calculateCost = (vehicleType: string, distance: number, roundTrip: 
       sedan: 0.50,
       suv: 0.65,
       furgoneta: 0.80,
-      bus: 1.20
+      bus: 1.20,
+      microbus: 0.95
     };
     
     // Get the rate for the vehicle type, default to sedan rate if not found
@@ -60,14 +61,14 @@ export const calculateReturnRoute = async (
       
       // Prepare waypoints from intermediate stops
       const waypoints = intermediateStops.map((stop) => ({
-        location: stop.location,
+        location: new google.maps.LatLng(stop.location.lat, stop.location.lng),
         stopover: true,
       }));
 
       directionsService.route(
         {
-          origin: origin,
-          destination: destination,
+          origin: new google.maps.LatLng(origin.lat, origin.lng),
+          destination: new google.maps.LatLng(destination.lat, destination.lng),
           waypoints: waypoints,
           optimizeWaypoints: false,
           travelMode: google.maps.TravelMode.DRIVING,

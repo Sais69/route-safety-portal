@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   calculateCost, 
@@ -141,6 +140,7 @@ const BookingPage: React.FC = () => {
     );
   }, [origin, destination, intermediateStops, distance]);
 
+  
   // Update cost based on vehicle type and distance
   const updateCost = (distance: number) => {
     const costString = calculateCost(vehicleType, distance, roundTrip);
@@ -167,16 +167,25 @@ const BookingPage: React.FC = () => {
     // Disable submit to prevent multiple submissions
     setIsSubmitting(true);
 
-    // Prepare booking data
+    // Prepare booking data with proper type conversion for Supabase
     const bookingData = {
       origin: originPlace,
       destination: destinationPlace,
-      origin_coords: origin,
-      destination_coords: destination,
+      origin_coords: { 
+        lat: origin.lat, 
+        lng: origin.lng 
+      },
+      destination_coords: { 
+        lat: destination.lat, 
+        lng: destination.lng 
+      },
       intermediate_stops: intermediateStops.map(stop => ({
         id: stop.id,
         placeName: stop.placeName,
-        location: stop.location
+        location: { 
+          lat: stop.location.lat, 
+          lng: stop.location.lng 
+        }
       })),
       departure_date: departureDate?.toISOString(),
       departure_time: departureTime,

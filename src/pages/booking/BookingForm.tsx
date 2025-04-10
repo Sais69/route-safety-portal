@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -78,6 +77,8 @@ export interface BookingFormProps {
   duration: string;
   returnDistance: number;
   returnDuration: string;
+  onSubmit: (userData: any) => Promise<void>; // Add the missing onSubmit prop
+  isSubmitting: boolean;
 }
 
 export function BookingForm({
@@ -102,16 +103,17 @@ export function BookingForm({
   intermediateStops,
   duration,
   returnDistance,
-  returnDuration
+  returnDuration,
+  onSubmit,
+  isSubmitting
 }: BookingFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = React.useState(false);
   const [departureDateState, setDepartureDateState] = React.useState<Date | undefined>(departureDate);
   const [returnDateState, setReturnDateState] = React.useState<Date | undefined>(returnDate);
 
-  // Asegurar que los estados locales se actualicen cuando cambien las props
+  // Ensure local states update when props change
   React.useEffect(() => {
     setDepartureDateState(departureDate);
   }, [departureDate]);
@@ -136,76 +138,32 @@ export function BookingForm({
     },
   });
 
-  // Actualizar el formulario cuando cambian las props
+  // Update form when props change
   React.useEffect(() => {
     form.setValue("origin", origin || "");
     form.setValue("destination", destination || "");
   }, [form, origin, destination]);
 
   async function handleSubmit(values: z.infer<typeof FormSchema>) {
-    setIsLoading(true);
-    try {
-      if (!user) {
-        toast({
-          title: "No has iniciado sesión.",
-          description: "Por favor, inicia sesión para continuar con la reserva.",
-          variant: "destructive",
-        });
-        navigate("/login");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert({
-          user_id: user?.id as string,
-          origin: values.origin,
-          destination: values.destination,
-          origin_coords: { lat: originCoords?.lat, lng: originCoords?.lng },
-          destination_coords: { lat: destinationCoords?.lat, lng: destinationCoords?.lng },
-          intermediate_stops: intermediateStops.length > 0 ? 
-            intermediateStops.map(stop => ({ 
-              address: stop.address, 
-              coords: { lat: stop.coords?.lat, lng: stop.coords?.lng } 
-            })) : [],
-          departure_date: departureDateState?.toISOString() || new Date().toISOString(),
-          departure_time: values.departureTime,
-          return_date: values.roundTrip && returnDateState ? returnDateState.toISOString() : null,
-          return_time: values.roundTrip && values.returnTime ? values.returnTime : null,
-          round_trip: values.roundTrip,
-          distance: distance,
-          duration: duration,
-          vehicle_type: values.vehicleType,
-          passenger_count: parseInt(values.passengerCount),
-          cost: totalCost
-        });
-
-      if (error) {
-        console.error("Error creating booking:", error);
-        toast({
-          title: "Error al crear la reserva.",
-          description: "Por favor, inténtalo de nuevo.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Reserva creada con éxito.",
-          description: "Te hemos enviado un correo electrónico con los detalles de tu reserva.",
-        });
-        navigate("/my-bookings");
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
+    if (!user) {
       toast({
-        title: "Error inesperado.",
-        description: "Por favor, inténtalo de nuevo más tarde.",
+        title: "No has iniciado sesión.",
+        description: "Por favor, inicia sesión para continuar con la reserva.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      navigate("/login");
+      return;
     }
+    
+    // Call the onSubmit handler from props with user data
+    await onSubmit({
+      userId: user?.id,
+      passengerCount: parseInt(values.passengerCount),
+      comments: values.comments
+    });
   }
 
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
@@ -499,8 +457,8 @@ export function BookingForm({
           </div>
         </div>
 
-        <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? "Cargando..." : "Crear Reserva"}
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting ? "Cargando..." : "Crear Reserva"}
         </Button>
       </form>
     </Form>
