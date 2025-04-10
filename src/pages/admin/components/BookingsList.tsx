@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   CalendarRange, Search, MapPin, User, 
-  Bus, Route, Calendar, Filter 
+  Bus, Route, Calendar, Filter, Loader2 
 } from "lucide-react";
 import { BookingWithDriver } from "../types";
 import { statusColors, statusLabels } from "../utils/statusConfig";
@@ -21,9 +21,10 @@ interface BookingsListProps {
   bookings: BookingWithDriver[];
   onViewDetails: (booking: BookingWithDriver) => void;
   onRefresh: () => void;
+  isLoading?: boolean;
 }
 
-const BookingsList = ({ bookings, onViewDetails, onRefresh }: BookingsListProps) => {
+const BookingsList = ({ bookings, onViewDetails, onRefresh, isLoading = false }: BookingsListProps) => {
   const [filteredBookings, setFilteredBookings] = useState<BookingWithDriver[]>(bookings);
   const [filters, setFilters] = useState({
     status: 'all',
@@ -144,6 +145,14 @@ const BookingsList = ({ bookings, onViewDetails, onRefresh }: BookingsListProps)
         </Select>
       </div>
                 
+      {/* Loading indicator */}
+      {isLoading && (
+        <div className="flex justify-center items-center my-8">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <span className="ml-2 text-blue-500">Cargando reservas...</span>
+        </div>
+      )}
+      
       {/* Bookings table */}
       <div className="overflow-x-auto">
         <Table className="w-full border-collapse">
@@ -242,7 +251,9 @@ const BookingsList = ({ bookings, onViewDetails, onRefresh }: BookingsListProps)
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-slate-400">
-                  No se encontraron reservas con los filtros seleccionados
+                  {isLoading ? 
+                    'Cargando reservas...' : 
+                    'No se encontraron reservas con los filtros seleccionados'}
                 </TableCell>
               </TableRow>
             )}

@@ -7,7 +7,8 @@ export {
 
 export {
   ensureMapElementReady,
-  createOrGetMapInstance
+  createOrGetMapInstance,
+  getMapInstanceFromElement
 } from './mapUtils';
 
 export {
@@ -15,3 +16,4 @@ export {
   calculateCost,
   calculateReturnRoute
 } from './routingService';
+

@@ -24,16 +24,69 @@ const AdminPage = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<BookingWithDriver | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     if (isAdmin) {
       fetchBookings();
       fetchDrivers();
+      
+      // Set up real-time listener for new bookings
+      setupBookingsSubscription();
     }
+    
+    // Cleanup function
+    return () => {
+      cleanupSubscriptions();
+    };
   }, [isAdmin]);
+  
+  // Setup realtime subscription for bookings
+  const setupBookingsSubscription = () => {
+    const channel = supabase
+      .channel('admin-bookings-changes')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'bookings' 
+        }, 
+        (payload) => {
+          console.log('New booking received:', payload);
+          // When a new booking is inserted, refresh the bookings list
+          fetchBookings();
+          toast.info('Nueva reserva recibida', {
+            description: `Se ha recibido una nueva reserva`,
+          });
+        }
+      )
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'bookings' 
+        }, 
+        (payload) => {
+          console.log('Booking updated:', payload);
+          // When a booking is updated, refresh the bookings list
+          fetchBookings();
+        }
+      )
+      .subscribe();
+      
+    console.log('Subscribed to bookings changes');
+    
+    return channel;
+  };
+  
+  // Cleanup subscriptions on component unmount
+  const cleanupSubscriptions = () => {
+    supabase.removeAllChannels();
+  };
   
   const fetchBookings = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
@@ -66,6 +119,8 @@ const AdminPage = () => {
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Error al cargar las reservas');
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -130,8 +185,9 @@ const AdminPage = () => {
               fetchDrivers();
             }} 
             className="bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={isLoading}
           >
-            Actualizar Datos
+            {isLoading ? 'Actualizando...' : 'Actualizar Datos'}
           </Button>
         </div>
         
@@ -162,6 +218,7 @@ const AdminPage = () => {
                   bookings={bookings}
                   onViewDetails={viewBookingDetails}
                   onRefresh={fetchBookings}
+                  isLoading={isLoading}
                 />
               </TabsContent>
               

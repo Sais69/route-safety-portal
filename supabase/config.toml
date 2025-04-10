@@ -3,3 +3,9 @@ project_id = "tuyxymqapxiinsijucww"
 
 [functions.get-maps-api-key]
 verify_jwt = false
+
+[realtime]
+enabled = true
+
+[[realtime.tables]]
+name = "bookings"
